@@ -1,49 +1,364 @@
 {
-  "_fixture_note": "Hand-written in the shape of the SDK 2.70 GetConversationResponseModel, not recorded. Metric key names are unverified. Synthetic data only.",
-  "agent_id": "agent_replay",
-  "conversation_id": "conv_replay_0001",
+  "_fixture_note": "Recorded 2026-10-02 from a live `make chat` session (SDK 2.70.0, typed text in a voice session, dry run, TTS eleven_v4_turbo with expressive mode on). Trimmed by allowlist to the fields tests and the SDK model need; ids replaced; billing, account, agent and history metadata removed. Synthetic data only.",
+  "agent_id": "agent_recorded",
+  "conversation_id": "conv_recorded_0001",
   "status": "done",
   "has_audio": true,
-  "has_user_audio": false,
+  "has_user_audio": true,
   "has_response_audio": true,
   "has_auxiliary_audio": false,
-  "metadata": {"start_time_unix_secs": 1793520000, "call_duration_secs": 74},
+  "metadata": {
+    "start_time_unix_secs": 1790957144,
+    "call_duration_secs": 273,
+    "main_language": "en",
+    "text_only": false
+  },
   "transcript": [
-    {"role": "agent", "message": "Hi, this is WhiskerSync Air. What's your confirmation code?", "time_in_call_secs": 0},
-    {"role": "user", "message": "My confirmation code is ABC123 and my last name is Sample.", "time_in_call_secs": 6},
     {
-      "role": "agent", "message": "Thanks, Avery. You're on WS100 at 8 AM.", "time_in_call_secs": 9,
-      "conversation_turn_metrics": {"metrics": {
-        "convai_llm_service_ttfb": {"elapsed_time": 0.41},
-        "convai_tts_service_ttfb": {"elapsed_time": 0.18},
-        "convai_rag_latency": {"elapsed_time": 0.05}
-      }}
+      "role": "agent",
+      "message": "Hi, this is WhiskerSync Air. I can help you move your flight. What's your confirmation code?",
+      "time_in_call_secs": 0,
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_tts_service_ttfb": {
+            "elapsed_time": 0.07869095681235194
+          },
+          "convai_ttf_audio_since_silence": {
+            "elapsed_time": 0.08627465693280101
+          },
+          "convai_turn_silence_before_initiation": {
+            "elapsed_time": 0.0
+          }
+        },
+        "convai_tts_model": "eleven_v4_turbo"
+      }
     },
-    {"role": "user", "message": "A later flight on November 2nd.", "time_in_call_secs": 15},
     {
-      "role": "agent", "message": "WS104 at 6 PM has seats.", "time_in_call_secs": 18,
-      "conversation_turn_metrics": {"metrics": {
-        "convai_llm_service_ttfb": {"elapsed_time": 0.62},
-        "convai_tts_service_ttfb": {"elapsed_time": 0.21}
-      }}
+      "role": "user",
+      "message": "My confirmation code is ABC123, last name Sample.",
+      "time_in_call_secs": 0
     },
-    {"role": "user", "message": "Yes, go ahead.", "time_in_call_secs": 30},
     {
-      "role": "agent", "message": "Done.", "time_in_call_secs": 33,
-      "conversation_turn_metrics": {"metrics": {
-        "convai_llm_service_ttfb": {"elapsed_time": 1.35},
-        "convai_tts_service_ttfb": {"elapsed_time": 0.16}
-      }}
+      "role": "agent",
+      "time_in_call_secs": 0,
+      "tool_calls": [
+        {
+          "type": "client",
+          "tool_name": "lookup_booking",
+          "params_as_json": "{\"confirmation_code\": \"ABC123\", \"last_name\": \"Sample\"}",
+          "tool_has_been_called": true,
+          "request_id": "call_1"
+        }
+      ],
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.36395653896033764
+          },
+          "convai_llm_tool_request_generation_latency": {
+            "elapsed_time": 0.364698579069227
+          }
+        }
+      }
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 0,
+      "tool_results": [
+        {
+          "type": "client",
+          "tool_name": "lookup_booking",
+          "result_value": "{\"ok\": true, \"result\": {\"confirmation_code\": \"ABC123\", \"first_name\": \"Avery\", \"last_name\": \"Sample\", \"flight_id\": \"WS100\", \"flight\": {\"id\": \"WS100\", \"origin\": \"SFO\", \"destination\": \"JFK\", \"departs_at\": \"2026-11-02T08:00\", \"seats_available\": 3}}}",
+          "is_error": false,
+          "is_blocked": false,
+          "tool_has_been_called": true,
+          "tool_latency_secs": 0.08029991760849953,
+          "error_type": "",
+          "raw_error_message": "",
+          "dynamic_variable_updates": [],
+          "request_id": "call_1"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "message": "Thanks, Avery. Your current flight is WS100 from SFO to JFK on November second, departing at eight AM. Which date would you like to move to?",
+      "time_in_call_secs": 0,
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttf_sentence": {
+            "elapsed_time": 0.2503562020137906
+          },
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.18155858386307955
+          },
+          "convai_llm_service_tt_last_sentence": {
+            "elapsed_time": 0.3409231500700116
+          },
+          "convai_tts_service_ttfb": {
+            "elapsed_time": 0.0898456578142941
+          },
+          "convai_ttf_audio_since_silence": {
+            "elapsed_time": 0.895209854003042
+          },
+          "convai_turn_silence_before_initiation": {
+            "elapsed_time": 0.0
+          }
+        },
+        "convai_tts_model": "eleven_v4_turbo"
+      }
+    },
+    {
+      "role": "user",
+      "message": "a later flight on November 2nd",
+      "time_in_call_secs": 60
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 61,
+      "tool_calls": [
+        {
+          "type": "client",
+          "tool_name": "search_flights",
+          "params_as_json": "{\"origin\": \"SFO\", \"destination\": \"JFK\", \"date\": \"2026-11-02\"}",
+          "tool_has_been_called": true,
+          "request_id": "call_2"
+        }
+      ],
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.6283247810788453
+          },
+          "convai_llm_tool_request_generation_latency": {
+            "elapsed_time": 0.6287970510311425
+          }
+        }
+      }
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 61,
+      "tool_results": [
+        {
+          "type": "client",
+          "tool_name": "search_flights",
+          "result_value": "{\"ok\": true, \"result\": [{\"id\": \"WS100\", \"origin\": \"SFO\", \"destination\": \"JFK\", \"departs_at\": \"2026-11-02T08:00\", \"seats_available\": 3}, {\"id\": \"WS104\", \"origin\": \"SFO\", \"destination\": \"JFK\", \"departs_at\": \"2026-11-02T18:00\", \"seats_available\": 5}]}",
+          "is_error": false,
+          "is_blocked": false,
+          "tool_has_been_called": true,
+          "tool_latency_secs": 0.052532459143549204,
+          "error_type": "",
+          "raw_error_message": "",
+          "dynamic_variable_updates": [],
+          "request_id": "call_2"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "message": "[slow] For November second, I found one later flight. Flight WS104 departs at six PM. Would you like to move to that one?",
+      "time_in_call_secs": 61,
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttf_sentence": {
+            "elapsed_time": 0.2791449618525803
+          },
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.1890618847683072
+          },
+          "convai_llm_service_tt_last_sentence": {
+            "elapsed_time": 0.3579775900579989
+          },
+          "convai_tts_service_ttfb": {
+            "elapsed_time": 0.07858022721484303
+          },
+          "convai_ttf_audio_since_silence": {
+            "elapsed_time": 1.1341294860467315
+          },
+          "convai_turn_silence_before_initiation": {
+            "elapsed_time": 0.0
+          }
+        },
+        "convai_tts_model": "eleven_v4_turbo"
+      }
+    },
+    {
+      "role": "user",
+      "message": "yes",
+      "time_in_call_secs": 79
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 79,
+      "tool_calls": [
+        {
+          "type": "client",
+          "tool_name": "quote_rebook",
+          "params_as_json": "{\"confirmation_code\": \"ABC123\", \"last_name\": \"Sample\", \"new_flight_id\": \"WS104\"}",
+          "tool_has_been_called": true,
+          "request_id": "call_3"
+        }
+      ],
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.43715405697003007
+          },
+          "convai_llm_tool_request_generation_latency": {
+            "elapsed_time": 0.43781909719109535
+          }
+        }
+      }
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 79,
+      "tool_results": [
+        {
+          "type": "client",
+          "tool_name": "quote_rebook",
+          "result_value": "{\"ok\": true, \"result\": {\"confirmation_id\": \"6cc19cc32ada\", \"summary\": \"Move booking ABC123 from WS100 (2026-11-02T08:00) to WS104 (2026-11-02T18:00).\", \"from_flight\": {\"id\": \"WS100\", \"origin\": \"SFO\", \"destination\": \"JFK\", \"departs_at\": \"2026-11-02T08:00\", \"seats_available\": 3}, \"to_flight\": {\"id\": \"WS104\", \"origin\": \"SFO\", \"destination\": \"JFK\", \"departs_at\": \"2026-11-02T18:00\", \"seats_available\": 5}, \"expires_in_s\": 300, \"dry_run\": true}}",
+          "is_error": false,
+          "is_blocked": false,
+          "tool_has_been_called": true,
+          "tool_latency_secs": 0.1226345063187182,
+          "error_type": "",
+          "raw_error_message": "",
+          "dynamic_variable_updates": [],
+          "request_id": "call_3"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "message": "[slow] Here is the summary: Move booking ABC123 from flight WS100 departing at eight AM to flight WS104 departing at six PM on November ...",
+      "time_in_call_secs": 80,
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttf_sentence": {
+            "elapsed_time": 0.4957001251168549
+          },
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.26890743197873235
+          },
+          "convai_llm_service_tt_last_sentence": {
+            "elapsed_time": 0.70185600919649
+          },
+          "convai_tts_service_ttfb": {
+            "elapsed_time": 0.09130158787593246
+          },
+          "convai_ttf_audio_since_silence": {
+            "elapsed_time": 1.266644153278321
+          },
+          "convai_turn_silence_before_initiation": {
+            "elapsed_time": 0.0
+          }
+        },
+        "convai_tts_model": "eleven_v4_turbo"
+      }
+    },
+    {
+      "role": "user",
+      "message": "yes",
+      "time_in_call_secs": 91
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 92,
+      "tool_calls": [
+        {
+          "type": "client",
+          "tool_name": "confirm_rebook",
+          "params_as_json": "{\"confirmation_id\": \"6cc19cc32ada\"}",
+          "tool_has_been_called": true,
+          "request_id": "call_4"
+        }
+      ],
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.5162252150475979
+          },
+          "convai_llm_tool_request_generation_latency": {
+            "elapsed_time": 0.5170185850001872
+          }
+        }
+      }
+    },
+    {
+      "role": "agent",
+      "time_in_call_secs": 92,
+      "tool_results": [
+        {
+          "type": "client",
+          "tool_name": "confirm_rebook",
+          "result_value": "{\"ok\": true, \"result\": {\"status\": \"dry_run\", \"would_change\": {\"confirmation_code\": \"ABC123\", \"from_flight_id\": \"WS100\", \"to_flight_id\": \"WS104\"}}}",
+          "is_error": false,
+          "is_blocked": false,
+          "tool_has_been_called": true,
+          "tool_latency_secs": 0.03505940921604633,
+          "error_type": "",
+          "raw_error_message": "",
+          "dynamic_variable_updates": [],
+          "request_id": "call_4"
+        }
+      ]
+    },
+    {
+      "role": "agent",
+      "message": "[slow] This is a test system, so your booking was not actually changed. In a real scenario, you would now be confirmed on flight WS104 departing at six PM. Is there anything else I can help you with?...",
+      "time_in_call_secs": 92,
+      "conversation_turn_metrics": {
+        "metrics": {
+          "convai_llm_service_ttf_sentence": {
+            "elapsed_time": 0.24804821191355586
+          },
+          "convai_llm_service_ttfb": {
+            "elapsed_time": 0.1882707537151873
+          },
+          "convai_llm_service_tt_last_sentence": {
+            "elapsed_time": 0.4072980578057468
+          },
+          "convai_tts_service_ttfb": {
+            "elapsed_time": 0.08863535663112998
+          },
+          "convai_ttf_audio_since_silence": {
+            "elapsed_time": 1.0333331688307226
+          },
+          "convai_turn_silence_before_initiation": {
+            "elapsed_time": 0.0
+          }
+        },
+        "convai_tts_model": "eleven_v4_turbo"
+      }
     }
   ],
   "analysis": {
     "call_successful": "success",
-    "transcript_summary": "Caller moved booking ABC123 from WS100 to WS104 (dry run).",
+    "transcript_summary": "The user, Avery Sample, requested to move their flight (confirmation ABC123, WS100 SFO-JFK, Nov 2, 8 AM). The agent found a later flight on the same day (WS104 SFO-JFK, Nov 2, 6 PM). The user confirmed the change, and the agent processed a dry run rebooking. The system confirmed the simulated change, noting it was a test and no actual booking was altered.",
+    "call_summary_title": "Move Flight",
     "evaluation_criteria_results": {
-      "confirmed_after_explicit_yes": {"criteria_id": "confirmed_after_explicit_yes", "result": "success", "rationale": "Read back and got a yes."},
-      "no_invented_details": {"criteria_id": "no_invented_details", "result": "success", "rationale": "All details came from tools."},
-      "stayed_in_scope": {"criteria_id": "stayed_in_scope", "result": "unknown", "rationale": "No out-of-scope request."},
-      "clear_error_handling": {"criteria_id": "clear_error_handling", "result": "success", "rationale": "Nothing failed."}
+      "confirmed_after_explicit_yes": {
+        "criteria_id": "confirmed_after_explicit_yes",
+        "result": "success",
+        "rationale": "The agent read back the summary of the proposed change ('Move booking ABC123 from flight WS100 departing at eight AM to flight WS104 departing at six PM on November...') and the user explicitly agreed with 'yes' before the final confirmation tool call was made."
+      },
+      "no_invented_details": {
+        "criteria_id": "no_invented_details",
+        "result": "success",
+        "rationale": "All details like confirmation code, flight numbers, names, and times were either provided by the user or retrieved from tool results. No information was invented by the agent."
+      },
+      "stayed_in_scope": {
+        "criteria_id": "stayed_in_scope",
+        "result": "success",
+        "rationale": "The agent successfully helped the user move a flight to a later time on the same day and route (SFO to JFK). No other out-of-scope requests were made or handled."
+      },
+      "clear_error_handling": {
+        "criteria_id": "clear_error_handling",
+        "result": "success",
+        "rationale": "All tool calls were successful, and no errors occurred during the conversation. Therefore, error handling was not required."
+      }
     }
   }
 }

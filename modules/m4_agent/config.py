@@ -8,6 +8,11 @@ from modules.m4_agent.agent import TOOL_PARAMS
 
 AGENT_NAME = "WhiskerSync Rebooking Agent"
 
+# Lower-cost TTS models; evals refuse to run on anything else. ElevenLabs only accepts
+# the v2 (English) versions for English agents; the v2.5 models are rejected.
+TTS_MODEL = "eleven_flash_v2"
+LOW_COST_TTS_MODELS = frozenset({"eleven_flash_v2", "eleven_turbo_v2"})
+
 FIRST_MESSAGE = "Hi, this is WhiskerSync Air. I can help you move your flight. What's your confirmation code?"
 
 SYSTEM_PROMPT = """\
@@ -112,5 +117,6 @@ def build_conversation_config(voice_id: str) -> dict:
             "language": "en",
             "prompt": {"prompt": SYSTEM_PROMPT, "tools": tool_definitions()},
         },
-        "tts": {"voice_id": voice_id},
+        # Expressive mode off: it makes the model write delivery tags like "[slow]" into replies.
+        "tts": {"voice_id": voice_id, "model_id": TTS_MODEL, "expressive_mode": False},
     }

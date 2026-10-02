@@ -5,7 +5,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 
-from harness.evals.runner import new_results_dir, run_scenario, write_report
+from harness.evals.runner import CostGuardError, check_low_cost_tts, new_results_dir, run_scenario, write_report
 from harness.evals.scenarios import SCENARIOS
 
 pytestmark = pytest.mark.evals
@@ -20,6 +20,11 @@ def eval_results():
     from elevenlabs import ElevenLabs
 
     client = ElevenLabs(api_key=api_key)
+    try:
+        model = check_low_cost_tts(client, agent_id)
+    except CostGuardError as e:
+        pytest.fail(f"cost guard: {e}", pytrace=False)
+    print(f"\nagent TTS model: {model}")
     out_dir = new_results_dir()
     results = {s.name: run_scenario(client, agent_id, s, out_dir) for s in SCENARIOS}
     print("\n" + write_report(list(results.values()), out_dir))

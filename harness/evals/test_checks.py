@@ -1,12 +1,13 @@
 import queue
+from types import SimpleNamespace
 
 import pytest
 
 from harness.evals.checks import check
-from harness.evals.runner import wait_for_agent_turn, wait_for_analysis
+from harness.evals.runner import CostGuardError, check_low_cost_tts, wait_for_agent_turn, wait_for_analysis
 from harness.evals.scenarios import SCENARIOS, Scenario
 from modules.m4_agent.agent import TOOL_PARAMS
-from modules.m4_agent.config import EVALUATION_CRITERIA
+from modules.m4_agent.config import EVALUATION_CRITERIA, LOW_COST_TTS_MODELS
 
 
 def call(tool, outcome="ok", dry_run=True, **args):
@@ -103,6 +104,23 @@ def test_wait_for_analysis_polls_until_done():
     details = wait_for_analysis(fake_client(["processing", "processing", "done"]), "c1", sleep=sleeps.append)
     assert details["status"] == "done"
     assert len(sleeps) == 2
+
+
+def agent_client(model_id):
+    agent = SimpleNamespace(conversation_config=SimpleNamespace(tts=SimpleNamespace(model_id=model_id)))
+    agents = SimpleNamespace(get=lambda agent_id: agent)
+    return SimpleNamespace(conversational_ai=SimpleNamespace(agents=agents))
+
+
+@pytest.mark.parametrize("model", sorted(LOW_COST_TTS_MODELS))
+def test_cost_guard_allows_low_cost_models(model):
+    assert check_low_cost_tts(agent_client(model), "agent_1") == model
+
+
+@pytest.mark.parametrize("model", ["eleven_v4_turbo", "eleven_multilingual_v2", "eleven_v3_conversational", None])
+def test_cost_guard_blocks_other_models(model):
+    with pytest.raises(CostGuardError, match="make agent"):
+        check_low_cost_tts(agent_client(model), "agent_1")
 
 
 def test_wait_for_analysis_times_out():

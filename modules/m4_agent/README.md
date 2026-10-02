@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 158 offline tests pass in CI (75 agent, 12 mock airline, 33 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). **Nothing has run against the live ElevenLabs API yet**, so there are no eval or latency results so far.
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 173 offline tests pass in CI (77 agent, 12 mock airline, 46 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). First live results are below: a full dry-run rebooking by chat, and 4 of the 6 eval scenarios, all passing (see [Live results](#live-results)).
 
 ## Layout
 
@@ -69,8 +69,11 @@
 | A tool was tried and failed where it must not succeed | Passes | `test_check` |
 | A forbidden tool was called, even if rejected | Fails | `test_check` |
 | Judge says `unknown` | Doesn't fail | `test_check` |
-| Text session, so no speech-to-text timings | Shows `n/a`, not 0 | `test_stage_latencies_text_session_has_no_stt`, `test_summarize_and_table` |
-| Unknown timing metric names | Listed so the mapping can be fixed | `test_unmapped_keys_are_reported` |
+| Text session, so no speech-to-text timings | Shows `n/a`, not 0 | `test_recorded_stages`, `test_recorded_summary_and_table` |
+| Tool-call turns also report LLM time | Counted as `llm_tool` only, so `llm` reflects spoken replies | `test_tool_call_turns_are_not_counted_as_llm` |
+| Scripted first message | Not counted in `e2e` (it isn't a reply to the caller) | `test_e2e_only_counts_generated_replies` |
+| New timing metric names | Listed; known-but-unreported names stay quiet | `test_new_metric_names_are_reported` |
+| Agent's TTS model isn't a low-cost one | `make evals` stops before spending credits | `test_cost_guard_blocks_other_models` |
 | Analysis still running, or never finishing | Polls, then `TimeoutError` | `test_wait_for_analysis_polls_until_done`, `test_wait_for_analysis_times_out` |
 
 ## Resilience
@@ -95,26 +98,58 @@ Tested with the [fault injection harness](../../harness/faults/README.md) betwee
 
 `happy_path`, `wrong_last_name`, `full_flight`, `user_declines`, `out_of_scope`, `different_route`. Each starts from a fresh in-memory airline and is forced into dry-run mode. They're defined in `harness/evals/scenarios.py`.
 
-## First live run
+Latency stages:
+
+| Stage | Metric | Meaning |
+|---|---|---|
+| `stt` | `convai_asr_trailing_service_latency` | Speech-to-text; **unverified**, since text sessions don't produce it |
+| `llm` | `convai_llm_service_ttfb` | LLM time to first output, spoken-reply turns only |
+| `llm_tool` | `convai_llm_tool_request_generation_latency` | LLM time to produce a tool call |
+| `tts` | `convai_tts_service_ttfb` | Text-to-speech time to first audio |
+| `e2e` | `convai_ttf_audio_since_silence` | Caller goes quiet → first agent audio |
+
+**Cost guard:** `make evals` first checks that the live agent uses a low-cost TTS model (`eleven_flash_v2` or `eleven_turbo_v2`) and stops otherwise. Live tests are also excluded from every pytest run by default (`pyproject.toml`), so only `make evals` can start them.
+
+## Live results
+
+First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. TTS was `eleven_v4_turbo` with expressive mode on, before the switch to Flash. The trimmed conversation is the recorded fixture `harness/replay/conversation_details.json`.
+
+- **Behaviour:** lookup → search → quote → read-back → "yes" → confirm (dry run). The audit log has 4 `ok` calls, and the booking was unchanged.
+- **Judge:** all four criteria `success`.
+- **Latency** (one session, so small samples):
+
+  | Stage | n | p50 | p95 |
+  |---|---|---|---|
+  | `llm` | 4 | 188 ms | 269 ms |
+  | `llm_tool` | 4 | 438 ms | 629 ms |
+  | `tts` | 5 | 89 ms | 91 ms |
+  | `e2e` | 4 | 1033 ms | 1267 ms |
+  | `stt` | 0 | n/a | n/a |
+
+- **Cost:** 1,658 credits, of which 1,499 were billed as voice call minutes for the whole 4.5-minute session. Session length, not just the TTS model, drives cost.
+
+Partial eval run, same day: 4 of the 6 scenarios ran before the run was stopped. `happy_path`, `wrong_last_name`, `full_flight` and `user_declines` all pass the rule checks and all four judge criteria. Each ran 19–26 s and cost 183–306 credits. `out_of_scope` and `different_route` haven't run yet.
+
+## Running it live
 
 1. Put `ELEVENLABS_API_KEY` and a stock `ELEVENLABS_VOICE_ID` in `.env`.
 2. `make agent`, then copy the printed id into `ELEVENLABS_AGENT_ID`.
 3. `make chat` (start `make airline` in another terminal first) for a quick text check.
-4. `make evals` (costs credits). Check the "unmapped metric keys" line, then fix `STAGE_METRICS` in `harness/evals/metrics.py`.
+4. `make evals` (costs credits).
 5. For speech-to-text latency, use a voice session (`make talk`, which needs `pyaudio`), then `make latency IDS="<conversation id>"`.
 
 ## Open questions
 
 - **Retrying a failed confirm:** when a confirm definitely didn't happen, its quote is still used up, so the agent has to quote again.
-- **Metric names:** the stage mapping and the seconds unit are guesses; the SDK doesn't define either.
-- **Text-only sessions:** it's unverified whether the voice agent accepts them without extra setup; `make chat` and the evals depend on it.
-- **Replay fixtures:** they're hand-written, not recorded. Re-record them after the first live run.
+- **STT metric name:** still unverified; needs one voice session.
+- **Cost of text sessions:** a typed session is billed as voice minutes for as long as it's open. Whether a text-only session setting would be cheaper is untested.
+- **Websocket replay fixture:** `rebook_conversation.jsonl` is still hand-written; recording it needs a capture mode in `session.py`.
 - **SDK upgrades:** the replay test uses a private SDK method (`Conversation._handle_message`), which is why `elevenlabs` is pinned to `~=2.70.0`.
 - **Using your own voice:** it's blocked by the stock-voice guard; using it would need an explicit allowlist.
 
 ## Trade-offs
 
-See `DECISIONS.md`: tools over HTTP; two-step gate and default dry run; client tools instead of webhooks; agent defined in code; our own eval runner instead of ElevenLabs simulations; text-driven evals; ElevenLabs grader as judge; latency mapping.
+See `DECISIONS.md`: tools over HTTP; two-step gate and default dry run; client tools instead of webhooks; agent defined in code; our own eval runner instead of ElevenLabs simulations; text-driven evals; ElevenLabs grader as judge; latency stages; Flash v2 TTS and the cost guard.
 
 ## Run
 

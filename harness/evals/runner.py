@@ -18,6 +18,7 @@ from harness.evals.checks import check
 from harness.evals.metrics import format_table, stage_latencies_ms, summarize, unmapped_keys
 from harness.evals.scenarios import BOOKING, Scenario
 from modules.m4_agent.audit import AuditLog
+from modules.m4_agent.config import LOW_COST_TTS_MODELS
 from modules.m4_agent.session import ToolBridge
 from modules.m4_agent.tools import AirlineTools
 from sandbox.mock_airline.app import create_app
@@ -40,6 +41,20 @@ class ScenarioResult:
     @property
     def passed(self) -> bool:
         return not self.failures
+
+
+class CostGuardError(RuntimeError):
+    pass
+
+
+def check_low_cost_tts(client, agent_id: str) -> str:
+    """Refuse to run evals unless the live agent uses a low-cost TTS model."""
+    model = client.conversational_ai.agents.get(agent_id).conversation_config.tts.model_id
+    if model not in LOW_COST_TTS_MODELS:
+        raise CostGuardError(
+            f"agent TTS model is {model!r}, not one of {sorted(LOW_COST_TTS_MODELS)}; run `make agent` first"
+        )
+    return model
 
 
 def wait_for_agent_turn(replies: queue.Queue, first_timeout=FIRST_REPLY_TIMEOUT_S, quiet=QUIET_S) -> list[str]:

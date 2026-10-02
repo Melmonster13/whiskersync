@@ -1,7 +1,8 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["drills", "modules", "sandbox", "harness"]
-addopts = "-ra --strict-markers"
+# Live and eval tests never run by default, even with a key in .env; `make evals` passes -m evals.
+addopts = "-ra --strict-markers -m 'not live and not evals'"
 markers = [
     "live: makes real ElevenLabs API calls (never in CI)",
     "evals: agent eval scenarios, cost credits (run via make evals)",

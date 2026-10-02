@@ -33,6 +33,12 @@ Format: `date | choice | why`
 - 2026-10-01 | fault randomness and sleep are injected (seeded RNG, fake sleep) | repeatable tests that never actually wait
 - 2026-10-01 | injected error statuses carry a plain-text body | real proxies and gateways return HTML; callers mustn't assume JSON
 - 2026-10-01 | gaps found by fault injection land first as strict `xfail` tests, fixed in a later change | the history shows find then fix; strict means a fix can't go unnoticed
+- 2026-10-02 | agent TTS is `eleven_flash_v2`, not v2.5 | lower-cost, low-latency model; ElevenLabs rejects the v2.5 models for English agents ("must use turbo or flash v2")
+- 2026-10-02 | expressive mode off | it made the model write delivery tags like "[slow]" into replies, which show up literally in text sessions
+- 2026-10-02 | `make evals` refuses to run unless the live agent uses `eleven_flash_v2` or `eleven_turbo_v2` | the model can be changed in the dashboard; check before spending credits
+- 2026-10-02 | pytest excludes `live` and `evals` by default (`addopts`); `make evals` overrides with `-m evals` | an unfiltered pytest run with a key in `.env` started live evals and spent credits
+- 2026-10-02 | latency stages from verified metric names; `llm` counts spoken-reply turns only, tool-call turns go to `llm_tool`; `e2e` counts generated replies only | pooling tool-call and reply turns hid which was slow; the scripted greeting isn't a response time
+- 2026-10-02 | conversation-details fixture is a real recording, trimmed by allowlist with ids replaced | real metric names and shapes; no billing, account, or agent metadata committed
 - 2026-10-02 | any airline reply that isn't readable JSON is `airline_unavailable`, including a 404 with an HTML body | our airline always replies in JSON, so a non-JSON 404 is a broken proxy, not a missing booking
 - 2026-10-02 | an unclear confirm (timeout, 5xx, unreadable reply) re-reads the booking; a connection never made, a 409, or another 4xx is taken at face value | only unclear outcomes need checking; a request never sent can't have changed anything
 - 2026-10-02 | new error `rebook_status_unknown` when the re-check also fails, with a "don't confirm again" message | `airline_unavailable` invites a retry, which risks acting twice when the first write may have landed

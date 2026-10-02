@@ -1,14 +1,18 @@
+import typing
 from types import SimpleNamespace
 
 import pytest
 from elevenlabs.types import AgentPlatformSettingsRequestModel, ConversationalConfig
+from elevenlabs.types.tts_conversational_model import TtsConversationalModel
 
 from modules.m4_agent.agent import TOOL_PARAMS
 from modules.m4_agent.config import (
     AGENT_NAME,
     EVALUATION_CRITERIA,
+    LOW_COST_TTS_MODELS,
     PARAM_DESCRIPTIONS,
     SYSTEM_PROMPT,
+    TTS_MODEL,
     build_conversation_config,
     build_platform_settings,
 )
@@ -25,6 +29,18 @@ def test_config_parses_with_sdk_models():
         assert tool.expects_response is True
         assert set(tool.parameters.required) == set(TOOL_PARAMS[tool.name])
         assert set(tool.parameters.properties) == set(TOOL_PARAMS[tool.name])
+
+
+def test_tts_uses_low_cost_model_without_expressive_tags():
+    tts = ConversationalConfig.model_validate(build_conversation_config("voice_stock_1")).tts
+    assert tts.model_id == TTS_MODEL
+    assert tts.model_id in LOW_COST_TTS_MODELS
+    assert tts.expressive_mode is False
+
+
+def test_low_cost_models_are_known_to_the_sdk():
+    sdk_models = set(typing.get_args(typing.get_args(TtsConversationalModel)[0]))
+    assert LOW_COST_TTS_MODELS <= sdk_models
 
 
 def test_platform_settings_parse_with_sdk_models():
