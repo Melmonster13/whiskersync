@@ -58,6 +58,7 @@ harness/replay/         conversation fixtures in the SDK message format
 harness/evals/          eval scenarios, rule checks, latency metrics, live runner
 harness/faults/         fault injection between the agent's tools and the airline
 DECISIONS.md            every non-obvious choice: date, choice, why
+PROVENANCE.md           how it was built: who did what, with AI assistance
 ```
 
 ## Status
@@ -67,3 +68,7 @@ m1–m3 are complete. m4 is fully tested offline and has run live: a full dry-ru
 ## Decisions
 
 The trade-offs behind each module are recorded one line each in [DECISIONS.md](DECISIONS.md).
+
+## How this was built
+
+Built with Claude Code as a pair programmer: Claude proposed plans and wrote most of the code and tests, and I set the scope and rules, made the design decisions, approved every change, and ran the live sessions. [PROVENANCE.md](PROVENANCE.md) records who did what, how correctness was checked, and what went wrong along the way.
