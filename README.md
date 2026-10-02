@@ -4,6 +4,8 @@
 
 Four building blocks of a voice-AI product, each built and tested as a standalone module: syncing a transcript to playback, orchestrating multi-language dubbing, resolving hierarchical permissions, and a voice agent that safely changes airline bookings. Built with Python, FastAPI, SQLite and the ElevenLabs Python SDK.
 
+**At a glance:** 316 offline tests pass in CI. The voice agent has run live by chat and by voice, and all 6 eval scenarios pass the rule checks and the ElevenLabs judge. Voice end-to-end latency is p50 1.9 s / p95 2.6 s ([live results](modules/m4_agent/README.md#live-results)).
+
 ## Modules
 
 | Module | What it does | Tests |
