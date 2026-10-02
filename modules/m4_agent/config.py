@@ -8,10 +8,11 @@ from modules.m4_agent.agent import TOOL_PARAMS
 
 AGENT_NAME = "WhiskerSync Rebooking Agent"
 
-# Lower-cost TTS models; evals refuse to run on anything else. ElevenLabs only accepts
-# the v2 (English) versions for English agents; the v2.5 models are rejected.
-TTS_MODEL = "eleven_flash_v2"
-LOW_COST_TTS_MODELS = frozenset({"eleven_flash_v2", "eleven_turbo_v2"})
+# Measured on this account, same scenario, expressive off: eleven_v4_turbo bills ~5.5 call
+# credits/s, eleven_flash_v2 ~11.2. Evals refuse to run on any model not measured as cheapest.
+# (v2.5 models are rejected for English agents.)
+TTS_MODEL = "eleven_v4_turbo"
+LOW_COST_TTS_MODELS = frozenset({"eleven_v4_turbo"})
 
 FIRST_MESSAGE = "Hi, this is WhiskerSync Air. I can help you move your flight. What's your confirmation code?"
 

@@ -113,11 +113,11 @@ Latency stages:
 | `tts` | `convai_tts_service_ttfb` | Text-to-speech time to first audio |
 | `e2e` | `convai_ttf_audio_since_silence` | Caller goes quiet → first agent audio |
 
-**Cost guard:** `make evals` first checks that the live agent uses a low-cost TTS model (`eleven_flash_v2` or `eleven_turbo_v2`) and stops otherwise. Live tests are also excluded from every pytest run by default (`pyproject.toml`), so only `make evals` can start them.
+**Cost guard:** `make evals` first checks that the live agent uses `eleven_v4_turbo`, the model measured as cheapest per second on this account, and stops otherwise. Live tests are also excluded from every pytest run by default (`pyproject.toml`), so only `make evals` can start them.
 
 ## Live results
 
-First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. TTS was `eleven_v4_turbo` with expressive mode on, before the switch to Flash. The trimmed conversation is the recorded fixture `harness/replay/conversation_details.json`.
+First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. TTS was `eleven_v4_turbo` with expressive mode on (the defaults at the time). The trimmed conversation is the recorded fixture `harness/replay/conversation_details.json`.
 
 - **Behaviour:** lookup → search → quote → read-back → "yes" → confirm (dry run). The audit log has 4 `ok` calls, and the booking was unchanged.
 - **Judge:** all four criteria `success`.
@@ -142,7 +142,7 @@ First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. T
 
 - `out_of_scope`: the agent declined the cancel-and-refund request twice and called no tools.
 - `different_route`: the agent looked up the booking, refused to change route, and never tried a quote.
-- **Cost:** switching to Flash v2 showed no visible per-scenario saving. The voice-minute charge (168–236 credits in batch 2) dominates and doesn't track the TTS model. The per-second rate also differed between eval sessions (~11 credits/s) and the long chat (~5.5 credits/s), for reasons not visible in the data. With samples this small, session length is still the main cost lever.
+- **Cost: the voice model sets the per-second call charge.** Each session is billed as LLM credits plus a per-second call charge. The call charge was 5.4–5.6 credits/s on every `eleven_v4_turbo` session and 11.2–11.3 credits/s on every `eleven_flash_v2` session. An isolation test re-ran `out_of_scope` on `eleven_v4_turbo` with expressive mode **off**: 14 s, **5.50 call credits/s, 108 credits total**, against 199 on Flash v2. So the model alone doubles the rate, and the agent now uses `eleven_v4_turbo` with expressive off. *(An earlier version of this README said Flash showed no saving and that the charge didn't track the model. That compared totals that mixed LLM credits and session lengths, and was wrong.)* ElevenLabs reported about **$0.10 per 1,000 credits** on every session (free tier).
 - **Batch 2 latency** (Flash v2, small samples): `llm` p50 279 / p95 496 ms, `llm_tool` 419 ms (n=1), `tts` p50 123 / p95 138 ms, `e2e` p50 499 / p95 977 ms.
 
 **Voice session, same day:** 58 s through `make talk` with laptop speakers and mic, on Flash v2. It cost 893 credits (~15 credits/s, including speech-to-text).
@@ -169,7 +169,7 @@ First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. T
 
 ## Trade-offs
 
-See `DECISIONS.md`: tools over HTTP; two-step gate and default dry run; client tools instead of webhooks; agent defined in code; our own eval runner instead of ElevenLabs simulations; text-driven evals; ElevenLabs grader as judge; latency stages; Flash v2 TTS and the cost guard.
+See `DECISIONS.md`: tools over HTTP; two-step gate and default dry run; client tools instead of webhooks; agent defined in code; our own eval runner instead of ElevenLabs simulations; text-driven evals; ElevenLabs grader as judge; latency stages; `eleven_v4_turbo` with expressive off, chosen by measured cost; the cost guard.
 
 ## Run
 

@@ -138,7 +138,9 @@ def test_cost_guard_allows_low_cost_models(model):
     assert check_low_cost_tts(agent_client(model), "agent_1") == model
 
 
-@pytest.mark.parametrize("model", ["eleven_v4_turbo", "eleven_multilingual_v2", "eleven_v3_conversational", None])
+@pytest.mark.parametrize(
+    "model", ["eleven_flash_v2", "eleven_turbo_v2", "eleven_multilingual_v2", "eleven_v3_conversational", None]
+)
 def test_cost_guard_blocks_other_models(model):
     with pytest.raises(CostGuardError, match="make agent"):
         check_low_cost_tts(agent_client(model), "agent_1")

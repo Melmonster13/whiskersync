@@ -1,9 +1,7 @@
-import typing
 from types import SimpleNamespace
 
 import pytest
 from elevenlabs.types import AgentPlatformSettingsRequestModel, ConversationalConfig
-from elevenlabs.types.tts_conversational_model import TtsConversationalModel
 
 from modules.m4_agent.agent import TOOL_PARAMS
 from modules.m4_agent.config import (
@@ -38,9 +36,11 @@ def test_tts_uses_low_cost_model_without_expressive_tags():
     assert tts.expressive_mode is False
 
 
-def test_low_cost_models_are_known_to_the_sdk():
-    sdk_models = set(typing.get_args(typing.get_args(TtsConversationalModel)[0]))
-    assert LOW_COST_TTS_MODELS <= sdk_models
+def test_config_model_is_the_one_the_cost_guard_allows():
+    # eleven_v4_turbo isn't in the SDK 2.70 model list (the SDK type also accepts any string);
+    # the server accepting it is confirmed by `make agent` succeeding, not by this test.
+    assert LOW_COST_TTS_MODELS == {TTS_MODEL}
+    assert "eleven_flash_v2" not in LOW_COST_TTS_MODELS      # measured at ~2x the call charge
 
 
 def test_platform_settings_parse_with_sdk_models():
