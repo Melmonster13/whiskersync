@@ -82,15 +82,15 @@ The full table, with tests, is in the m4 README, *Resilience*. These behaviours 
 - **Six scripted scenarios:** happy path, wrong last name, full flight, caller declines, out of scope, different route. Each is checked by **rules** (which tools were called and with what outcome, the final booking, dry run) and by **ElevenLabs' judge** against four criteria. **All six pass live.**
 - **Latency, p50/p95 per stage**, from ElevenLabs' per-turn metrics (small samples, measured during development):
 
-  | Stage | p50 | p95 | Source |
-  |---|---|---|---|
-  | `stt` (speech-to-text) | 52 ms | 105 ms | Voice session |
-  | `llm` (spoken reply, time to first output) | 188 ms | 269 ms | Text session |
-  | `llm_tool` (choosing a tool call) | 438 ms | 629 ms | Text session |
-  | `tts` (time to first audio) | 89 ms | 91 ms | Text session |
-  | `e2e` (caller quiet → first agent audio) | 1,033 ms | 1,267 ms | Text session |
+  | Stage | Voice p50 | Voice p95 | Text p50 | Text p95 |
+  |---|---|---|---|---|
+  | `stt` (speech-to-text) | 71 ms | 88 ms | n/a | n/a |
+  | `llm` (spoken reply, time to first output) | 227 ms | 368 ms | 188 ms | 269 ms |
+  | `llm_tool` (choosing a tool call) | 422 ms | 689 ms | 438 ms | 629 ms |
+  | `tts` (time to first audio) | 87 ms | 94 ms | 89 ms | 91 ms |
+  | **`e2e` (caller quiet → first agent audio)** | **1,902 ms** | **2,594 ms** | 1,033 ms | 1,267 ms |
 
-  The single voice session had speaker echo, so I'm not quoting its `e2e`. A clean run with headphones is the next measurement.
+  Voice is one 104 s session with headphones; text is one typed chat. Samples are small (n = 4–7 per stage). Voice `e2e` is higher mainly because the voice system has to detect that the caller has stopped speaking before it replies. The slowest replies come right after a tool call. Next step for latency: a larger voice sample, and comparing end-of-speech detection settings.
 
 ## Path to production
 

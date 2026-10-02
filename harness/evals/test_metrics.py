@@ -14,16 +14,27 @@ from harness.evals.metrics import (
 )
 from harness.evals.runner import judge_results
 
-# Recorded from a live `make chat` session; see its _fixture_note.
-FIXTURE = Path(__file__).parents[1] / "replay" / "conversation_details.json"
+# Recorded from live sessions; see each file's _fixture_note.
+REPLAY = Path(__file__).parents[1] / "replay"
+FIXTURE = REPLAY / "conversation_details.json"              # `make chat` (text)
+VOICE_FIXTURE = REPLAY / "voice_conversation_details.json"  # `make talk` with headphones
+
+
+def load(path):
+    raw = json.loads(path.read_text())
+    raw.pop("_fixture_note")
+    # Round-trip through the SDK model, as the runner does with live responses.
+    return GetConversationResponseModel.model_validate(raw).model_dump(mode="json")
 
 
 @pytest.fixture
 def details():
-    raw = json.loads(FIXTURE.read_text())
-    raw.pop("_fixture_note")
-    # Round-trip through the SDK model, as the runner does with live responses.
-    return GetConversationResponseModel.model_validate(raw).model_dump(mode="json")
+    return load(FIXTURE)
+
+
+@pytest.fixture
+def voice():
+    return load(VOICE_FIXTURE)
 
 
 def turn(**metrics):
@@ -129,6 +140,37 @@ def test_stages_pool_across_conversations(details):
 def test_new_metric_names_are_reported(details):
     extra = {"transcript": [turn(convai_new_thing=0.1, convai_llm_service_ttf_sentence=0.2)]}
     assert unmapped_keys([details, extra]) == ["convai_new_thing"]   # known-but-unreported names stay quiet
+
+
+def test_recorded_voice_stages(voice):
+    samples = stage_latencies_ms([voice])
+    assert samples["stt"] == pytest.approx([56.1, 70.8, 71.6, 46.8, 88.3], abs=0.1)
+    assert samples["tts"] == pytest.approx([72.2, 85.0, 87.6, 94.3, 87.5, 90.3, 82.7], abs=0.1)
+    assert samples["e2e"] == pytest.approx([2593.9, 2184.0, 1902.4, 1539.2, 842.9], abs=0.1)
+    summary = summarize(samples)
+    assert summary["e2e"]["p50"] == pytest.approx(1902.4, abs=0.1)
+    assert summary["e2e"]["p95"] == pytest.approx(2593.9, abs=0.1)
+    assert unmapped_keys([voice]) == []
+
+
+def test_idle_prompt_after_silence_is_not_counted_as_e2e(voice):
+    # Live: the caller said nothing for 12 s ("..."), and the agent asked "Are you still there?".
+    # That turn's e2e (12.5 s) is silence, not response time.
+    silent = next(i for i, t in enumerate(voice["transcript"]) if t["role"] == "user" and t["message"] == "...")
+    prompt = voice["transcript"][silent + 1]
+    assert prompt["message"].startswith("Are you still there?")
+    assert prompt["conversation_turn_metrics"]["metrics"]["convai_ttf_audio_since_silence"]["elapsed_time"] > 12
+    assert max(stage_latencies_ms([voice])["e2e"]) < 3000
+
+
+@pytest.mark.parametrize(
+    "caller_message, counted",
+    [("...", False), ("", False), ("…", False), (None, False), ("Yes, go ahead.", True)],
+)
+def test_e2e_after_caller_turn(caller_message, counted):
+    reply = turn(convai_llm_service_ttfb=0.2, convai_ttf_audio_since_silence=0.9)
+    transcript = [{"role": "user", "message": caller_message}, {"role": "agent", **reply}]
+    assert (len(stage_latencies_ms([{"transcript": transcript}])["e2e"]) == 1) is counted
 
 
 def test_judge_results(details):

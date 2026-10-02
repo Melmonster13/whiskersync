@@ -33,10 +33,22 @@ def turn_metrics(details: dict) -> list[dict[str, float]]:
     return turns
 
 
+def _caller_silent(entry: dict) -> bool:
+    # Voice transcripts record a caller turn with no speech as "..." (seen live).
+    return not (entry.get("message") or "").strip(" .…\n")
+
+
 def stage_latencies_ms(details_list: list[dict]) -> dict[str, list[float]]:
     samples = {stage: [] for stage in STAGES}
     for details in details_list:
-        for turn in turn_metrics(details):
+        caller_silent = False
+        for entry in details.get("transcript") or []:
+            if entry.get("role") == "user":
+                caller_silent = _caller_silent(entry)
+            records = ((entry.get("conversation_turn_metrics") or {}).get("metrics")) or {}
+            if not records:
+                continue
+            turn = {key: record["elapsed_time"] for key, record in records.items()}
             if STT in turn:
                 samples["stt"].append(turn[STT] * 1000)
             # A tool-call turn also reports LLM TTFB; count it as llm_tool only, so the
@@ -47,8 +59,9 @@ def stage_latencies_ms(details_list: list[dict]) -> dict[str, list[float]]:
                 samples["llm"].append(turn[LLM] * 1000)
             if TTS in turn:
                 samples["tts"].append(turn[TTS] * 1000)
-            # Only generated replies: the scripted first message isn't a response to the caller.
-            if E2E in turn and LLM in turn and LLM_TOOL not in turn:
+            # Only generated replies to something the caller said: the scripted first message and
+            # "are you still there?" prompts after silence aren't response times.
+            if E2E in turn and LLM in turn and LLM_TOOL not in turn and not caller_silent:
                 samples["e2e"].append(turn[E2E] * 1000)
     return samples
 

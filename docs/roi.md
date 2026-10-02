@@ -10,10 +10,11 @@ From ElevenLabs' own per-conversation billing figures, with the agent on `eleven
 |---|---|---|
 | Eval scenarios (busy: a turn every few seconds) | 617 | **$0.062** |
 | Typed chat (long pauses while typing) | 364 | $0.036 |
+| Voice call with headphones (full rebooking, 104 s) | 438 | $0.044 |
 
 - **Billing has two parts:** LLM credits per conversation, plus a **per-second call charge of about 5.5 credits/s** on `eleven_v4_turbo`. The same charge was about 11.2 credits/s on `eleven_flash_v2`, so the model choice matters (see the m4 README).
 - **Exchange rate:** ElevenLabs reported about **$0.10 per 1,000 credits** on every session.
-- **Speech-to-text appears to be included in the call charge:** a voice session's per-second charge matched text sessions on the same model.
+- **Speech-to-text is included in the call charge:** the voice call's charge was 5.50 credits/s, the same as text sessions on `eleven_v4_turbo`.
 - I use the busier rate, **$0.062/min**, as the conservative figure.
 
 ## Inputs: placeholders to replace with customer data

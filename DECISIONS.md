@@ -33,6 +33,8 @@ Format: `date | choice | why`
 - 2026-10-01 | fault randomness and sleep are injected (seeded RNG, fake sleep) | repeatable tests that never actually wait
 - 2026-10-01 | injected error statuses carry a plain-text body | real proxies and gateways return HTML; callers mustn't assume JSON
 - 2026-10-01 | gaps found by fault injection land first as strict `xfail` tests, fixed in a later change | the history shows find then fix; strict means a fix can't go unnoticed
+- 2026-10-02 | `e2e` skips agent replies that follow a silent caller turn ("..." or empty) | live: an "Are you still there?" prompt after 12 s of silence was reported as a 12.5 s e2e; that's caller silence, not response time
+- 2026-10-02 | second recorded fixture from the clean voice session, trimmed by the same allowlist | real STT and voice-latency shapes for the tests, including the idle-prompt turn
 - 2026-10-02 | voice sessions need headphones, printed at `make talk` start; no echo cancellation added | live test: laptop speakers fed the agent its own voice and it kept interrupting itself; the SDK's default audio interface has no echo cancellation, and building one is out of scope
 - 2026-10-02 | `convai_turn_asr_latency` is known but not reported | it repeats the preceding STT value on the reply turn; counting it would double STT samples
 - 2026-10-02 | confirm sends its `confirmation_id` as an `Idempotency-Key`; the mock airline stores successful results by key and replays them, and rejects a key reused for a different request with 422 | makes retrying a write safe even if the first request lands late; the standard fix, rather than relying on this airline's "already on this flight" error
