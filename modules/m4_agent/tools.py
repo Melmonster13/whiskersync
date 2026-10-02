@@ -145,26 +145,30 @@ class AirlineTools:
         if self.dry_run:
             return {"status": "dry_run", "would_change": change}
 
+        # The confirmation id doubles as the idempotency key, so a retry can never apply twice.
         try:
             resp = await self._client.patch(
-                f"/bookings/{quote.confirmation_code}", json={"flight_id": quote.to_flight["id"]}
+                f"/bookings/{quote.confirmation_code}",
+                json={"flight_id": quote.to_flight["id"]},
+                headers={"Idempotency-Key": confirmation_id},
             )
         except (httpx.ConnectError, httpx.ConnectTimeout):
-            # Never connected, so the request was never sent.
+            # Never connected, so the request was never sent: safe to retry the same quote.
+            self._quotes[confirmation_id] = quote
             raise ToolError("airline_unavailable", AIRLINE_UNAVAILABLE_MESSAGE) from None
         except httpx.HTTPError:
-            return await self._reconcile(quote)
+            return await self._reconcile(confirmation_id, quote)
         if resp.status_code == 409:
             raise ToolError("flight_full", "That flight filled up since the quote.")
         if resp.status_code >= 500:
-            return await self._reconcile(quote)
+            return await self._reconcile(confirmation_id, quote)
         resp.raise_for_status()
         try:
             return {"status": "rebooked", "booking": resp.json()}
         except ValueError:
-            return await self._reconcile(quote)
+            return await self._reconcile(confirmation_id, quote)
 
-    async def _reconcile(self, quote: Quote) -> dict:
+    async def _reconcile(self, confirmation_id: str, quote: Quote) -> dict:
         """The confirm may or may not have been applied: re-read the booking to find out."""
         try:
             booking = await self._get(
@@ -174,4 +178,7 @@ class AirlineTools:
             raise ToolError("rebook_status_unknown", STATUS_UNKNOWN_MESSAGE) from None
         if booking["flight_id"] == quote.to_flight["id"]:
             return {"status": "rebooked", "booking": booking, "reconciled": True}
+        # Not applied (yet). Keep the quote: a retry with the same key is safe even if the
+        # first request lands late, because the airline won't apply the same key twice.
+        self._quotes[confirmation_id] = quote
         raise ToolError("airline_unavailable", AIRLINE_UNAVAILABLE_MESSAGE)

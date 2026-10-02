@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 180 offline tests pass in CI (77 agent, 12 mock airline, 53 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). Live, it completed a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge (see [Live results](#live-results)).
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. It sends the confirmation id as an idempotency key, so a retry can never apply twice. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 191 offline tests pass in CI (84 agent, 16 mock airline, 53 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). Live, it completed a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge (see [Live results](#live-results)).
 
 ## Layout
 
@@ -85,7 +85,12 @@ Tested with the [fault injection harness](../../harness/faults/README.md) betwee
 | Airline slow | Same results; only latency changes | `test_latency_does_not_change_results` |
 | 500, 503, 429, connection refused, or timeout | `airline_unavailable`, audited | `test_airline_failures_become_airline_unavailable` |
 | Airline fails once, then recovers | The next call succeeds | `test_flaky_airline_recovers` |
-| Confirm fails before reaching the airline | Booking unchanged; the quote is used up, so the agent must quote again | `test_confirm_failure_before_send_leaves_booking_and_needs_requote` |
+| Confirm failed but definitely didn't apply (never sent, or re-check shows unchanged) | `airline_unavailable`, and the quote is kept: retrying the same `confirmation_id` works until it expires | `test_retry_after_failed_confirm_succeeds`, `test_still_failing_airline_keeps_the_quote_retryable`, `test_restored_quote_still_expires` |
+| First confirm lands late, after the re-check | The retry sends the same idempotency key, so the airline returns the stored result and the seat moves once | `test_late_landing_write_is_not_applied_twice` |
+| Clear rejection (409 full, other 4xx) | The quote is used up; a retry gets `unknown_confirmation` | `test_clear_rejection_uses_up_the_quote` |
+| Status unknown after a failed re-check | The quote isn't kept; the agent looks the booking up instead of confirming again | `test_lost_write_with_failed_recheck_is_status_unknown` |
+| Same idempotency key twice at the airline | Applied once; the second call returns the stored result | `test_same_idempotency_key_applies_once` |
+| Key reused for a different flight | 422; nothing applied | `test_key_reused_for_different_request_is_422` |
 | Dry-run confirm | Never contacts the airline | `test_dry_run_confirm_never_reaches_airline` |
 | Non-JSON reply (broken 200, HTML 404 from a proxy) | `airline_unavailable`, never "booking not found" *(was gap 1)* | `test_non_json_reply_is_airline_unavailable`, `test_non_json_search_reply_is_airline_unavailable` |
 | Confirm applied but its reply lost | Booking re-read; reported as `rebooked` with `reconciled: true` *(was gap 2)* | `test_lost_write_is_reconciled_as_rebooked` |
@@ -150,7 +155,6 @@ First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. T
 
 ## Open questions
 
-- **Retrying a failed confirm:** when a confirm definitely didn't happen, its quote is still used up, so the agent has to quote again.
 - **STT metric name:** still unverified; needs one voice session.
 - **Cost of text sessions:** a typed session is billed as voice minutes for as long as it's open. Whether a text-only session setting would be cheaper is untested.
 - **Websocket replay fixture:** `rebook_conversation.jsonl` is still hand-written; recording it needs a capture mode in `session.py`.

@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     last_name TEXT NOT NULL,
     flight_id TEXT NOT NULL REFERENCES flights(id)
 );
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    key TEXT PRIMARY KEY,
+    confirmation_code TEXT NOT NULL,
+    flight_id TEXT NOT NULL,
+    response TEXT NOT NULL
+);
 """
 
 # Synthetic data only: no real people or bookings.

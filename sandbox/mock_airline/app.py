@@ -4,10 +4,11 @@ Run locally:
     uvicorn sandbox.mock_airline.app:create_default_app --factory
 """
 
+import json
 import os
 import sqlite3
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from sandbox.mock_airline.db import connect, init_db
@@ -72,7 +73,19 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
         return get_flight(flight_id)
 
     @app.patch("/bookings/{code}")
-    async def change_flight(code: str, body: ChangeFlight) -> Booking:
+    async def change_flight(
+        code: str, body: ChangeFlight, idempotency_key: str | None = Header(default=None)
+    ) -> Booking:
+        # A repeated key returns the stored result without applying the change again.
+        if idempotency_key is not None:
+            seen = conn.execute(
+                "SELECT * FROM idempotency_keys WHERE key = ?", (idempotency_key,)
+            ).fetchone()
+            if seen is not None:
+                if (seen["confirmation_code"], seen["flight_id"]) != (code.upper(), body.flight_id):
+                    raise HTTPException(422, "idempotency key reused for a different request")
+                return Booking(**json.loads(seen["response"]))
+
         booking = get_booking(code)
         new = get_flight(body.flight_id)
         if new.id == booking.flight_id:
@@ -91,7 +104,13 @@ def create_app(conn: sqlite3.Connection) -> FastAPI:
                 "UPDATE bookings SET flight_id = ? WHERE confirmation_code = ?",
                 (new.id, booking.confirmation_code),
             )
-        return get_booking(code)
+            updated = get_booking(code)
+            if idempotency_key is not None:
+                conn.execute(
+                    "INSERT INTO idempotency_keys VALUES (?, ?, ?, ?)",
+                    (idempotency_key, booking.confirmation_code, new.id, updated.model_dump_json()),
+                )
+        return updated
 
     return app
 
