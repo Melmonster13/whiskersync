@@ -12,3 +12,8 @@ Format: `date | choice | why`
 - 2026-10-01 | m2 state machine: retry resumes the stage that failed, not the whole pipeline | don't pay again for transcription when only TTS failed
 - 2026-10-01 | m2 state machine: illegal (state, event) pairs raise instead of no-op | silent no-ops hide orchestrator bugs
 - 2026-10-01 | m2 job status: a failed task with retries left counts as in progress; some languages done + rest failed/cancelled = PARTIAL | the job isn't settled until every task is final, and partial output is still deliverable
+- 2026-10-01 | m4 tools reach the mock airline over HTTP, not SQLite directly | mirrors a real customer integration; lets fault injection test timeouts later; tests stay offline via ASGI transport
+- 2026-10-01 | m4 rebooking is two-step: `quote_rebook` (no write, single-use id, 5 min TTL) then `confirm_rebook`; `DRY_RUN` on unless explicitly false | a gated action needs explicit confirmation, and the safe default is no write
+- 2026-10-01 | m4 `quote_rebook` re-verifies last name; mock airline returns the same 404 for wrong name and unknown code | a confirmation code alone shouldn't allow changes or confirm a booking exists
+- 2026-10-01 | m4 IDs are alphanumeric-only before going into URL paths | blocks path injection (`../`) from model-generated arguments
+- 2026-10-01 | mock airline endpoints are `async` | keeps every SQLite call on the event loop thread, so one shared connection is safe
