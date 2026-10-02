@@ -17,3 +17,10 @@ Format: `date | choice | why`
 - 2026-10-01 | m4 `quote_rebook` re-verifies last name; mock airline returns the same 404 for wrong name and unknown code | a confirmation code alone shouldn't allow changes or confirm a booking exists
 - 2026-10-01 | m4 IDs are alphanumeric-only before going into URL paths | blocks path injection (`../`) from model-generated arguments
 - 2026-10-01 | mock airline endpoints are `async` | keeps every SQLite call on the event loop thread, so one shared connection is safe
+- 2026-10-01 | m4 agent defined in code (`config.py` + `provision.py`), tool schemas generated from `TOOL_PARAMS` | reviewable, reproducible agent; tool schema can't drift from the dispatcher
+- 2026-10-01 | m4 tools run as SDK client tools in our process, not server webhooks | no public endpoint needed for a local sandbox; audit log and dry-run stay on our side
+- 2026-10-01 | `provision.py` refuses any voice whose category isn't `premade` | enforces stock-voices-only; using my own voice would need an explicit allowlist
+- 2026-10-01 | bridge strips SDK-injected `tool_call_id` and returns errors as `{ok: false}` results, not raised exceptions | dispatcher stays strict on unknown args; the agent gets a message it can explain instead of a generic error
+- 2026-10-01 | audit `conversation_id` is a local session id; the ElevenLabs id is logged at session end | the SDK only exposes the conversation id publicly after the session ends
+- 2026-10-01 | replay fixture is hand-written in the SDK message format and run through the SDK's own (private) `_handle_message` | no API key yet to record; exercises the real tool-call path offline; re-record later
+- 2026-10-01 | `elevenlabs` pinned to `~=2.70.0` | the Conversation API is marked beta and the replay test touches a private method

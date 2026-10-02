@@ -1,0 +1,15 @@
+{"type": "_fixture_note", "note": "Hand-written in the ElevenLabs SDK 2.70 websocket message format, not recorded from a live session. Re-record once an API key is available. Synthetic data only."}
+{"type": "conversation_initiation_metadata", "conversation_initiation_metadata_event": {"conversation_id": "conv_replay_0001"}}
+{"type": "agent_response", "agent_response_event": {"agent_response": "Hi, this is WhiskerSync Air. I can help you move your flight. What's your confirmation code?"}}
+{"type": "user_transcript", "user_transcription_event": {"user_transcript": "It's A B C 1 2 3, last name Sample."}}
+{"type": "client_tool_call", "client_tool_call": {"tool_name": "lookup_booking", "tool_call_id": "call_1", "parameters": {"confirmation_code": "ABC123", "last_name": "Sample"}}}
+{"type": "agent_response", "agent_response_event": {"agent_response": "Thanks, Avery. You're on WS100 from SFO to JFK on November 2nd at 8 AM. What date would you like instead?"}}
+{"type": "user_transcript", "user_transcription_event": {"user_transcript": "Same day, but later."}}
+{"type": "client_tool_call", "client_tool_call": {"tool_name": "search_flights", "tool_call_id": "call_2", "parameters": {"origin": "SFO", "destination": "JFK", "date": "2026-11-02"}}}
+{"type": "agent_response", "agent_response_event": {"agent_response": "There's a 6 PM flight, WS104, with seats available. Want that one?"}}
+{"type": "user_transcript", "user_transcription_event": {"user_transcript": "Yes, the 6 PM one."}}
+{"type": "client_tool_call", "client_tool_call": {"tool_name": "quote_rebook", "tool_call_id": "call_3", "parameters": {"confirmation_code": "ABC123", "last_name": "Sample", "new_flight_id": "WS104"}}}
+{"type": "agent_response", "agent_response_event": {"agent_response": "To confirm: move booking ABC123 from WS100 at 8 AM to WS104 at 6 PM on November 2nd. Shall I go ahead?"}}
+{"type": "user_transcript", "user_transcription_event": {"user_transcript": "Yes, go ahead."}}
+{"type": "client_tool_call", "client_tool_call": {"tool_name": "confirm_rebook", "tool_call_id": "call_4", "parameters": {"confirmation_id": "replay-quote-1"}}}
+{"type": "agent_response", "agent_response_event": {"agent_response": "Done. Anything else I can help with?"}}

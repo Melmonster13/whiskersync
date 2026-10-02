@@ -52,11 +52,13 @@ class AirlineTools:
         dry_run: bool = True,
         quote_ttl_s: float = QUOTE_TTL_S,
         clock=time.monotonic,
+        new_id=lambda: uuid.uuid4().hex[:12],
     ):
         self._client = client
         self.dry_run = dry_run
         self._ttl = quote_ttl_s
         self._clock = clock
+        self._new_id = new_id
         self._quotes: dict[str, Quote] = {}
 
     async def _get(self, path: str, not_found: str, params: dict | None = None):
@@ -93,7 +95,7 @@ class AirlineTools:
         if new["seats_available"] < 1:
             raise ToolError("flight_full", "That flight has no seats left.")
 
-        confirmation_id = uuid.uuid4().hex[:12]
+        confirmation_id = self._new_id()
         self._quotes[confirmation_id] = Quote(
             booking["confirmation_code"], current, new, self._clock() + self._ttl
         )

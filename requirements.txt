@@ -1,2 +1,5 @@
+elevenlabs~=2.70.0
 fastapi
 httpx
+python-dotenv
+uvicorn
