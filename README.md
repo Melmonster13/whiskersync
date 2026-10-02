@@ -17,6 +17,10 @@ Each module README has a problem → approach → result summary, its rules, and
 
 [Drills](drills/README.md): eight timed algorithm problems (intervals, binary search, topological sort, LRU cache, rate limiting, sliding percentiles, and more), each tied to a pattern the modules use. They're stubs for practice, with full test tables.
 
+## Customer-facing docs
+
+Written as for a real engagement with a fictional airline: [discovery notes](docs/discovery.md), [solution design](docs/solution-design.md) (architecture and sequence diagrams, safety controls, path to production), and an [ROI model](docs/roi.md): measured per-minute AI cost, with clearly labelled placeholder customer figures.
+
 ## Safety by design
 
 - **Every write needs explicit confirmation.** The agent can only change a booking with a single-use, expiring quote id, and every change is a dry run unless `DRY_RUN=false`.
@@ -58,6 +62,7 @@ harness/replay/         conversation fixtures in the SDK message format
 harness/evals/          eval scenarios, rule checks, latency metrics, live runner
 harness/faults/         fault injection between the agent's tools and the airline
 DECISIONS.md            every non-obvious choice: date, choice, why
+docs/                   discovery notes, solution design, ROI model
 PROVENANCE.md           how it was built: who did what, with AI assistance
 ```
 
