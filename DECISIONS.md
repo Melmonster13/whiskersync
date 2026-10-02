@@ -29,4 +29,5 @@ Format: `date | choice | why`
 - 2026-10-01 | eval pass = rule-based checks (audit log + final booking) and no ElevenLabs judge `failure`; `unknown` doesn't fail | outcomes are checked deterministically; the judge covers wording and behavior the rules can't
 - 2026-10-01 | judge is ElevenLabs evaluation criteria on the agent, not a separate LLM | no second provider or key; every conversation gets graded, not just evals
 - 2026-10-01 | latency reported as nearest-rank p50/p95 per stage; metric key names and seconds unit are unverified, unmapped keys always printed | the SDK doesn't define the names; fix the mapping after the first live run instead of guessing silently
+- 2026-10-01 | drills are stubs with tests marked `xfail(raises=NotImplementedError)`; tests verified against uncommitted reference solutions | practice material, not answers; CI stays green on stubs but a wrong solution still fails
 - 2026-10-01 | `elevenlabs` pinned to `~=2.70.0` | the Conversation API is marked beta and the replay test touches a private method

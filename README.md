@@ -15,6 +15,8 @@ Four building blocks of a voice-AI product, each built and tested as a standalon
 
 Each module README has a problem → approach → result summary, its rules, and a table of edge cases with the test that covers each one.
 
+[Drills](drills/README.md): eight timed algorithm problems (intervals, binary search, topological sort, LRU cache, rate limiting, sliding percentiles, and more), each tied to a pattern the modules use. They're stubs for practice, with full test tables.
+
 ## Safety by design
 
 - **Every write needs explicit confirmation.** The agent can only change a booking with a single-use, expiring quote id, and every change is a dry run unless `DRY_RUN=false`.
@@ -33,7 +35,7 @@ make install
 make test
 ```
 
-`make test` runs the full offline suite (213 tests); CI runs the same command on Python 3.12.
+`make test` runs the full offline suite: 213 module tests pass, and the 102 drill tests show as expected failures (`xfailed`) until each drill is solved. CI runs the same command on Python 3.12.
 
 Live agent (needs an ElevenLabs API key in `.env`; see the [m4 README](modules/m4_agent/README.md#first-live-run)):
 
@@ -49,6 +51,7 @@ Live agent (needs an ElevenLabs API key in `.env`; see the [m4 README](modules/m
 
 ```
 modules/                m1–m4, each with its code, tests, and README
+drills/                 timed practice problems: stubs plus tests
 sandbox/mock_airline/   FastAPI + SQLite mock airline (synthetic data)
 harness/replay/         conversation fixtures in the SDK message format
 harness/evals/          eval scenarios, rule checks, latency metrics, live runner
