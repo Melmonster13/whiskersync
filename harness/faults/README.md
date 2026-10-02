@@ -29,12 +29,14 @@ Set `FAULT_PROFILE` in `.env` to run `make chat` / `make talk` against a misbeha
 | `down` | Every request fails to connect |
 | `lost_write` | The first booking change is applied but its reply is lost |
 
-## Known gaps found with this harness
+To start a fault partway through a test (say, the airline goes down after a quote), call `transport.add_rule(rule)`.
 
-Both are tested in `modules/m4_agent/test_resilience.py` as strict expected failures (`xfail`), so fixing a gap makes CI fail until its marker is removed.
+## Gaps found with this harness (fixed)
 
-1. **Non-JSON replies crash the dispatcher.** A 200 with a broken body, or a 404 with an HTML body, raises a JSON parsing error. The agent gets `internal_error` instead of `airline_unavailable`.
-2. **A lost write is reported as a failure.** If the confirm request is applied but its reply is lost, the booking **has** changed, the agent tells the caller it failed, and the quote id is already used up. Planned fix: after an unclear confirm, re-check the booking and report what actually happened.
+Both were first pinned in `modules/m4_agent/test_resilience.py` as strict expected failures (`xfail`), then fixed in a later commit.
+
+1. **Non-JSON replies crashed the dispatcher.** A 200 with a broken body, or a 404 with an HTML body, raised a JSON parsing error, so the agent got `internal_error`. **Fix:** any reply that isn't readable JSON now becomes `airline_unavailable`.
+2. **A lost write was reported as a failure.** If the confirm was applied but its reply was lost, the booking **had** changed while the agent told the caller it failed. **Fix:** after an unclear confirm (a timeout, a 5xx, or an unreadable reply), the booking is re-read and the caller hears what actually happened. If the re-check fails too, the answer is `rebook_status_unknown`, which tells the agent not to confirm again.
 
 ## Run
 

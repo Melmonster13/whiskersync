@@ -3,7 +3,7 @@
 import httpx
 
 from modules.m4_agent.audit import AuditLog
-from modules.m4_agent.tools import AirlineTools, ToolError
+from modules.m4_agent.tools import AIRLINE_UNAVAILABLE_MESSAGE, AirlineTools, ToolError
 
 TOOL_PARAMS: dict[str, dict[str, type]] = {
     "lookup_booking": {"confirmation_code": str, "last_name": str},
@@ -54,11 +54,7 @@ async def handle_tool_call(
         return {"ok": False, "error": e.code, "message": e.message}
     except httpx.HTTPError:
         log("error", "airline_unavailable")
-        return {
-            "ok": False,
-            "error": "airline_unavailable",
-            "message": "The airline system isn't responding. Please try again shortly.",
-        }
+        return {"ok": False, "error": "airline_unavailable", "message": AIRLINE_UNAVAILABLE_MESSAGE}
     except Exception:
         log("error", "internal_error")
         raise

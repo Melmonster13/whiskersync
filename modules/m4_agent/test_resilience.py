@@ -1,7 +1,7 @@
 """m4 tools and dispatcher under injected airline faults.
 
-The two xfail tests are known gaps found by this harness. They're strict, so fixing a
-gap makes its test fail until the marker is removed.
+The non-JSON and lost-write tests started as strict xfails (gaps found by this harness)
+and were fixed afterwards.
 """
 
 import random
@@ -118,23 +118,97 @@ async def test_lost_write_does_change_the_booking(make_tools, audit, conn):
     assert booked_flight(conn) == "WS104"
 
 
-@pytest.mark.xfail(strict=True, reason="known gap 1: non-JSON airline replies crash the dispatcher")
 @pytest.mark.parametrize(
     "rule",
-    [FaultRule("bad_json", path=r"/bookings/.+"), FaultRule("status", status_code=404, path=r"/bookings/.+")],
-    ids=["bad_json_200", "non_json_404"],
+    [
+        FaultRule("bad_json", path=r"/bookings/.+"),
+        FaultRule("status", status_code=404, path=r"/bookings/.+"),   # HTML 404 from a proxy
+        FaultRule("bad_json", path=r"/flights/.+"),                    # second request of the lookup
+    ],
+    ids=["bad_json_200", "non_json_404", "bad_json_flight"],
 )
-async def test_gap_non_json_reply_is_airline_unavailable(make_tools, audit, rule):
+async def test_non_json_reply_is_airline_unavailable(make_tools, audit, rule):
     tools, _ = make_tools([rule])
     resp = await handle_tool_call(tools, audit, "lookup_booking", LOOKUP, CONV)
     assert resp["error"] == "airline_unavailable"
+    [entry] = audit.entries()
+    assert (entry["outcome"], entry["error"]) == ("error", "airline_unavailable")
 
 
-@pytest.mark.xfail(strict=True, reason="known gap 2: a lost confirm reply is reported as a failure")
-async def test_gap_lost_write_is_reported_as_rebooked(make_tools, audit, conn):
+async def test_non_json_search_reply_is_airline_unavailable(make_tools, audit):
+    tools, _ = make_tools([FaultRule("bad_json", path="/flights")])
+    params = {"origin": "SFO", "destination": "JFK", "date": "2026-11-02"}
+    resp = await handle_tool_call(tools, audit, "search_flights", params, CONV)
+    assert resp["error"] == "airline_unavailable"
+
+
+async def test_lost_write_is_reconciled_as_rebooked(make_tools, audit, conn):
     tools, _ = make_tools([FaultRule("timeout_after_send", method="PATCH")], dry_run=False)
     await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
     confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
     assert booked_flight(conn) == "WS104"
     assert confirm["ok"] is True
     assert confirm["result"]["status"] == "rebooked"
+    assert confirm["result"]["reconciled"] is True
+    assert confirm["result"]["booking"]["flight_id"] == "WS104"
+
+
+async def test_lost_write_with_failed_recheck_is_status_unknown(make_tools, audit, conn):
+    tools, transport = make_tools([FaultRule("timeout_after_send", method="PATCH")], dry_run=False)
+    await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
+    transport.add_rule(FaultRule("connect_error", method="GET"))     # airline goes down after the quote
+    confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
+    assert confirm["error"] == "rebook_status_unknown"
+    assert "Don't confirm again" in confirm["message"]
+    assert booked_flight(conn) == "WS104"                          # it did go through
+    assert audit.entries()[-1]["error"] == "rebook_status_unknown"
+
+
+UNCLEAR_CONFIRMS = pytest.mark.parametrize(
+    "rule",
+    [
+        FaultRule("bad_json", method="PATCH"),                  # unreadable reply, change not applied
+        FaultRule("status", status_code=502, method="PATCH"),   # gateway error, change not applied
+        FaultRule("timeout", method="PATCH"),                   # timed out before reaching the airline
+    ],
+    ids=["bad_json", "502", "timeout"],
+)
+
+
+@UNCLEAR_CONFIRMS
+async def test_unclear_confirm_not_applied_is_airline_unavailable(make_tools, audit, conn, rule):
+    tools, _ = make_tools([rule], dry_run=False)
+    await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
+    confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
+    assert confirm["error"] == "airline_unavailable"
+    assert booked_flight(conn) == "WS100"
+
+
+@UNCLEAR_CONFIRMS
+async def test_unclear_confirm_is_rechecked(make_tools, audit, conn, rule):
+    """If the re-check fails too, the answer becomes status-unknown: proof the re-check ran."""
+    tools, transport = make_tools([rule], dry_run=False)
+    await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
+    transport.add_rule(FaultRule("connect_error", method="GET"))
+    confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
+    assert confirm["error"] == "rebook_status_unknown"
+    assert ("connect_error", "GET", "/bookings/ABC123") in transport.log
+
+
+async def test_confirm_connect_error_skips_recheck(make_tools, audit, conn):
+    tools, transport = make_tools([FaultRule("connect_error", method="PATCH")], dry_run=False)
+    await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
+    transport.add_rule(FaultRule("connect_error", method="GET"))     # a re-check would fail
+    confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
+    assert confirm["error"] == "airline_unavailable"                # never sent, so not "unknown"
+    assert [(k, m) for k, m, _ in transport.log] == [("connect_error", "PATCH")]
+    assert booked_flight(conn) == "WS100"
+
+
+async def test_confirm_other_4xx_is_not_rechecked(make_tools, audit, conn):
+    tools, transport = make_tools([FaultRule("status", status_code=400, method="PATCH")], dry_run=False)
+    await handle_tool_call(tools, audit, "quote_rebook", QUOTE, CONV)
+    transport.add_rule(FaultRule("connect_error", method="GET"))     # a re-check would fail
+    confirm = await handle_tool_call(tools, audit, "confirm_rebook", {"confirmation_id": "q1"}, CONV)
+    assert confirm["error"] == "airline_unavailable"
+    assert booked_flight(conn) == "WS100"

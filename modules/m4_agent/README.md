@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 143 offline tests pass in CI (61 agent, 12 mock airline, 33 eval harness, 37 fault harness), including a replayed conversation through the SDK's real tool-call path. Fault injection found two gaps, now pinned as strict expected-failure tests until they're fixed (see [Resilience](#resilience)). **Nothing has run against the live ElevenLabs API yet**, so there are no eval or latency results so far.
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 158 offline tests pass in CI (75 agent, 12 mock airline, 33 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). **Nothing has run against the live ElevenLabs API yet**, so there are no eval or latency results so far.
 
 ## Layout
 
@@ -84,8 +84,12 @@ Tested with the [fault injection harness](../../harness/faults/README.md) betwee
 | Airline fails once, then recovers | The next call succeeds | `test_flaky_airline_recovers` |
 | Confirm fails before reaching the airline | Booking unchanged; the quote is used up, so the agent must quote again | `test_confirm_failure_before_send_leaves_booking_and_needs_requote` |
 | Dry-run confirm | Never contacts the airline | `test_dry_run_confirm_never_reaches_airline` |
-| **Gap 1:** non-JSON reply (broken 200, HTML 404) | Currently `internal_error` plus an exception; should be `airline_unavailable` | `test_gap_non_json_reply_is_airline_unavailable` (xfail) |
-| **Gap 2:** confirm applied but its reply lost | The booking **did** change, but the agent reports a failure; should re-check and report `rebooked` | `test_gap_lost_write_is_reported_as_rebooked` (xfail) |
+| Non-JSON reply (broken 200, HTML 404 from a proxy) | `airline_unavailable`, never "booking not found" *(was gap 1)* | `test_non_json_reply_is_airline_unavailable`, `test_non_json_search_reply_is_airline_unavailable` |
+| Confirm applied but its reply lost | Booking re-read; reported as `rebooked` with `reconciled: true` *(was gap 2)* | `test_lost_write_is_reconciled_as_rebooked` |
+| Reply lost **and** the re-check fails | `rebook_status_unknown`: "don't confirm again, look it up"; the prompt tells the agent to call `lookup_booking` | `test_lost_write_with_failed_recheck_is_status_unknown` |
+| Confirm timed out, got a 5xx, or got an unreadable reply, but wasn't applied | Re-checked, then `airline_unavailable` | `test_unclear_confirm_not_applied_is_airline_unavailable`, `test_unclear_confirm_is_rechecked` |
+| Confirm couldn't connect at all | `airline_unavailable` with no re-check: the request was never sent | `test_confirm_connect_error_skips_recheck` |
+| Confirm got another 4xx | Treated as a clear answer, no re-check | `test_confirm_other_4xx_is_not_rechecked` |
 
 ## Eval scenarios
 
@@ -101,7 +105,7 @@ Tested with the [fault injection harness](../../harness/faults/README.md) betwee
 
 ## Open questions
 
-- **Known gaps:** the two resilience gaps above are documented but not yet fixed.
+- **Retrying a failed confirm:** when a confirm definitely didn't happen, its quote is still used up, so the agent has to quote again.
 - **Metric names:** the stage mapping and the seconds unit are guesses; the SDK doesn't define either.
 - **Text-only sessions:** it's unverified whether the voice agent accepts them without extra setup; `make chat` and the evals depend on it.
 - **Replay fixtures:** they're hand-written, not recorded. Re-record them after the first live run.

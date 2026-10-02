@@ -176,6 +176,15 @@ async def test_same_seed_same_faults(upstream):
 
 
 @pytest.mark.asyncio
+async def test_add_rule_starts_a_fault_partway(upstream):
+    c, t = client(upstream, [])
+    assert (await c.get("/flights")).status_code == 200
+    t.add_rule(FaultRule("status", times=1))
+    codes = [(await c.get("/flights")).status_code for _ in range(2)]
+    assert codes == [503, 200]
+
+
+@pytest.mark.asyncio
 async def test_log_records_every_fired_fault(upstream):
     c, t = client(upstream, [FaultRule("status", method="GET", times=1)])
     await c.get("/flights")

@@ -53,6 +53,11 @@ class FaultTransport(httpx.AsyncBaseTransport):
         self._fired = [0] * len(self.rules)
         self.log: list[tuple[str, str, str]] = []   # (kind, method, path) of every fault that fired
 
+    def add_rule(self, rule: FaultRule) -> None:
+        """Start a fault partway through, e.g. the airline goes down after a quote."""
+        self.rules.append(rule)
+        self._fired.append(0)
+
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         for i, rule in enumerate(self.rules):
             if not rule.matches(request):

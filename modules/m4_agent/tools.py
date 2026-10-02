@@ -3,6 +3,9 @@
 Changing a booking is gated: quote_rebook never writes and returns a single-use,
 expiring confirmation_id; confirm_rebook is the only write, and with dry_run=True
 (the default) it reports what would change instead.
+
+If a confirm's outcome is unclear (timeout, 5xx, unreadable reply), the booking is
+re-read so the caller hears what actually happened.
 """
 
 import os
@@ -13,6 +16,12 @@ from dataclasses import dataclass
 import httpx
 
 QUOTE_TTL_S = 300
+
+AIRLINE_UNAVAILABLE_MESSAGE = "The airline system isn't responding. Please try again shortly."
+STATUS_UNKNOWN_MESSAGE = (
+    "I couldn't confirm whether the change went through. Don't confirm again; "
+    "look the booking up to check."
+)
 
 
 class ToolError(Exception):
@@ -27,6 +36,7 @@ class ToolError(Exception):
 @dataclass(frozen=True)
 class Quote:
     confirmation_code: str
+    last_name: str
     from_flight: dict
     to_flight: dict
     expires_at: float
@@ -43,6 +53,14 @@ def _clean_id(value: str, error_code: str) -> str:
     if not value.isalnum():
         raise ToolError(error_code, "That doesn't look like a valid reference.")
     return value
+
+
+def _json(resp: httpx.Response):
+    # Our airline always replies in JSON; anything else means something in between broke.
+    try:
+        return resp.json()
+    except ValueError:
+        raise ToolError("airline_unavailable", AIRLINE_UNAVAILABLE_MESSAGE) from None
 
 
 class AirlineTools:
@@ -64,9 +82,10 @@ class AirlineTools:
     async def _get(self, path: str, not_found: str, params: dict | None = None):
         resp = await self._client.get(path, params=params)
         if resp.status_code == 404:
-            raise ToolError(not_found, resp.json().get("detail", "not found"))
+            body = _json(resp)
+            raise ToolError(not_found, body.get("detail", "not found") if isinstance(body, dict) else "not found")
         resp.raise_for_status()
-        return resp.json()
+        return _json(resp)
 
     async def lookup_booking(self, confirmation_code: str, last_name: str) -> dict:
         code = _clean_id(confirmation_code, "booking_not_found")
@@ -97,7 +116,7 @@ class AirlineTools:
 
         confirmation_id = self._new_id()
         self._quotes[confirmation_id] = Quote(
-            booking["confirmation_code"], current, new, self._clock() + self._ttl
+            booking["confirmation_code"], last_name, current, new, self._clock() + self._ttl
         )
         return {
             "confirmation_id": confirmation_id,
@@ -126,10 +145,33 @@ class AirlineTools:
         if self.dry_run:
             return {"status": "dry_run", "would_change": change}
 
-        resp = await self._client.patch(
-            f"/bookings/{quote.confirmation_code}", json={"flight_id": quote.to_flight["id"]}
-        )
+        try:
+            resp = await self._client.patch(
+                f"/bookings/{quote.confirmation_code}", json={"flight_id": quote.to_flight["id"]}
+            )
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            # Never connected, so the request was never sent.
+            raise ToolError("airline_unavailable", AIRLINE_UNAVAILABLE_MESSAGE) from None
+        except httpx.HTTPError:
+            return await self._reconcile(quote)
         if resp.status_code == 409:
             raise ToolError("flight_full", "That flight filled up since the quote.")
+        if resp.status_code >= 500:
+            return await self._reconcile(quote)
         resp.raise_for_status()
-        return {"status": "rebooked", "booking": resp.json()}
+        try:
+            return {"status": "rebooked", "booking": resp.json()}
+        except ValueError:
+            return await self._reconcile(quote)
+
+    async def _reconcile(self, quote: Quote) -> dict:
+        """The confirm may or may not have been applied: re-read the booking to find out."""
+        try:
+            booking = await self._get(
+                f"/bookings/{quote.confirmation_code}", "booking_not_found", {"last_name": quote.last_name}
+            )
+        except (httpx.HTTPError, ToolError):
+            raise ToolError("rebook_status_unknown", STATUS_UNKNOWN_MESSAGE) from None
+        if booking["flight_id"] == quote.to_flight["id"]:
+            return {"status": "rebooked", "booking": booking, "reconciled": True}
+        raise ToolError("airline_unavailable", AIRLINE_UNAVAILABLE_MESSAGE)

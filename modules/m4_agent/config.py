@@ -27,6 +27,8 @@ Process:
 Rules:
 - Never guess codes, names, or flight ids. Ask, and spell back codes letter by letter.
 - If a tool returns ok=false, explain its message in plain words and offer the next step.
+- If confirm_rebook returns rebook_status_unknown, never call confirm_rebook again; call
+  lookup_booking to see which flight the booking is on, and tell the caller.
 - Keep turns short; this is a voice call.
 """
 

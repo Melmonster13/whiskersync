@@ -33,5 +33,9 @@ Format: `date | choice | why`
 - 2026-10-01 | fault randomness and sleep are injected (seeded RNG, fake sleep) | repeatable tests that never actually wait
 - 2026-10-01 | injected error statuses carry a plain-text body | real proxies and gateways return HTML; callers mustn't assume JSON
 - 2026-10-01 | gaps found by fault injection land first as strict `xfail` tests, fixed in a later change | the history shows find then fix; strict means a fix can't go unnoticed
+- 2026-10-02 | any airline reply that isn't readable JSON is `airline_unavailable`, including a 404 with an HTML body | our airline always replies in JSON, so a non-JSON 404 is a broken proxy, not a missing booking
+- 2026-10-02 | an unclear confirm (timeout, 5xx, unreadable reply) re-reads the booking; a connection never made, a 409, or another 4xx is taken at face value | only unclear outcomes need checking; a request never sent can't have changed anything
+- 2026-10-02 | new error `rebook_status_unknown` when the re-check also fails, with a "don't confirm again" message | `airline_unavailable` invites a retry, which risks acting twice when the first write may have landed
+- 2026-10-02 | a failed confirm still uses up its quote | kept narrow for this fix; restoring the quote for a safe retry is a separate change
 - 2026-10-01 | drills are stubs with tests marked `xfail(raises=NotImplementedError)`; tests verified against uncommitted reference solutions | practice material, not answers; CI stays green on stubs but a wrong solution still fails
 - 2026-10-01 | `elevenlabs` pinned to `~=2.70.0` | the Conversation API is marked beta and the replay test touches a private method
