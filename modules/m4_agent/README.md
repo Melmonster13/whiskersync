@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. It sends the confirmation id as an idempotency key, so a retry can never apply twice. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 191 offline tests pass in CI (84 agent, 16 mock airline, 53 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). Live, it completed a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge (see [Live results](#live-results)).
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. It sends the confirmation id as an idempotency key, so a retry can never apply twice. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 192 offline tests pass in CI (84 agent, 16 mock airline, 54 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). Live, it completed a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge (see [Live results](#live-results)).
 
 ## Layout
 
@@ -107,7 +107,7 @@ Latency stages:
 
 | Stage | Metric | Meaning |
 |---|---|---|
-| `stt` | `convai_asr_trailing_service_latency` | Speech-to-text; **unverified**, since text sessions don't produce it |
+| `stt` | `convai_asr_trailing_service_latency` | Speech-to-text, measured after the caller stops speaking; voice sessions only (text sessions show `n/a`) |
 | `llm` | `convai_llm_service_ttfb` | LLM time to first output, spoken-reply turns only |
 | `llm_tool` | `convai_llm_tool_request_generation_latency` | LLM time to produce a tool call |
 | `tts` | `convai_tts_service_ttfb` | Text-to-speech time to first audio |
@@ -145,17 +145,23 @@ First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. T
 - **Cost:** switching to Flash v2 showed no visible per-scenario saving. The voice-minute charge (168–236 credits in batch 2) dominates and doesn't track the TTS model. The per-second rate also differed between eval sessions (~11 credits/s) and the long chat (~5.5 credits/s), for reasons not visible in the data. With samples this small, session length is still the main cost lever.
 - **Batch 2 latency** (Flash v2, small samples): `llm` p50 279 / p95 496 ms, `llm_tool` 419 ms (n=1), `tts` p50 123 / p95 138 ms, `e2e` p50 499 / p95 977 ms.
 
+**Voice session, same day:** 58 s through `make talk` with laptop speakers and mic, on Flash v2. It cost 893 credits (~15 credits/s, including speech-to-text).
+
+- **STT verified:** `stt` p50 **52 ms**, p95 **105 ms** (n=14). Also seen: `convai_turn_asr_latency`, which repeats the same value on the reply turn, so it isn't counted twice.
+- **Echo:** the mic picked up the agent's own voice. Its greeting and replies were transcribed as the caller's, and it kept interrupting itself mid-sentence ("Which date would…" about eight times). The one real line (the confirmation code) got through, and `lookup_booking` ran correctly as a dry run. The SDK's default audio interface has no echo cancellation, so **use headphones**.
+- Other figures from this session (`llm` p50 243 ms, `tts` p50 114 ms) look normal, but `e2e` (p95 2.4 s) was likely inflated by the self-interruptions and shouldn't be quoted.
+
 ## Running it live
 
 1. Put `ELEVENLABS_API_KEY` and a stock `ELEVENLABS_VOICE_ID` in `.env`.
 2. `make agent`, then copy the printed id into `ELEVENLABS_AGENT_ID`.
 3. `make chat` (start `make airline` in another terminal first) for a quick text check.
 4. `make evals` runs all six scenarios (costs credits). To run some of them: `make evals ONLY=out_of_scope,different_route`. An unknown name fails before anything is spent.
-5. For speech-to-text latency, use a voice session (`make talk`, which needs `pyaudio`), then `make latency IDS="<conversation id>"`.
+5. For a voice session, `make talk`. It needs `brew install portaudio` and `.venv/bin/pip install pyaudio`, and **headphones**: without echo cancellation, the agent hears itself through laptop speakers. Then `make latency IDS="<conversation id>"`. Voice costs more per second than text, so keep sessions short.
 
 ## Open questions
 
-- **STT metric name:** still unverified; needs one voice session.
+- **Clean voice latency:** the only voice session had echo, so its `e2e` isn't reliable. A short run with headphones would give a trustworthy figure.
 - **Cost of text sessions:** a typed session is billed as voice minutes for as long as it's open. Whether a text-only session setting would be cheaper is untested.
 - **Websocket replay fixture:** `rebook_conversation.jsonl` is still hand-written; recording it needs a capture mode in `session.py`.
 - **SDK upgrades:** the replay test uses a private SDK method (`Conversation._handle_message`), which is why `elevenlabs` is pinned to `~=2.70.0`.

@@ -1,13 +1,13 @@
 """Per-stage latency from ElevenLabs conversation details, as p50/p95.
 
-Metric names verified against a live conversation on 2026-10-02 (values in seconds),
-except STT, which a text session doesn't produce. Unmapped keys are always reported
-so new metric names don't go unnoticed.
+Metric names verified against live conversations on 2026-10-02 (values in seconds):
+LLM, TTS and e2e from a text session, STT from a voice session. Unmapped keys are
+always reported so new metric names don't go unnoticed.
 """
 
 import math
 
-STT = "convai_asr_trailing_service_latency"          # unverified: needs a voice session
+STT = "convai_asr_trailing_service_latency"
 LLM = "convai_llm_service_ttfb"
 LLM_TOOL = "convai_llm_tool_request_generation_latency"
 TTS = "convai_tts_service_ttfb"
@@ -20,6 +20,7 @@ KNOWN_UNREPORTED = {
     "convai_llm_service_ttf_sentence",
     "convai_llm_service_tt_last_sentence",
     "convai_turn_silence_before_initiation",
+    "convai_turn_asr_latency",          # repeats the preceding STT value on the reply turn
 }
 
 

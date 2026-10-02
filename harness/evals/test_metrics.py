@@ -110,6 +110,18 @@ def test_stt_is_picked_up_when_present():
     assert samples["stt"] == pytest.approx([150])
 
 
+def test_voice_session_turns_count_stt_once():
+    """Shape seen in a live voice session: STT on its own turn, repeated as turn_asr_latency on the reply."""
+    voice = {"transcript": [
+        turn(convai_asr_trailing_service_latency=0.051),
+        turn(convai_llm_service_ttfb=0.262, convai_tts_service_ttfb=0.111,
+             convai_ttf_audio_since_silence=0.851, convai_turn_asr_latency=0.051),
+    ]}
+    samples = stage_latencies_ms([voice])
+    assert samples["stt"] == pytest.approx([51])
+    assert unmapped_keys([voice]) == []
+
+
 def test_stages_pool_across_conversations(details):
     assert len(stage_latencies_ms([details, details])["llm"]) == 8
 

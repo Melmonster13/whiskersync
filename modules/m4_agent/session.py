@@ -58,9 +58,12 @@ class ToolBridge:
 def _audio_interface():
     try:
         from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInterface
-        return DefaultAudioInterface()
+        interface = DefaultAudioInterface()
     except ImportError:
-        sys.exit("Voice mode needs pyaudio: pip install 'elevenlabs[pyaudio]'. Or use --text.")
+        sys.exit("Voice mode needs pyaudio: brew install portaudio, then .venv/bin/pip install pyaudio. Or use --text.")
+    # Seen live: through laptop speakers the mic picks up the agent, which then interrupts itself.
+    print("Use headphones: this audio interface has no echo cancellation.")
+    return interface
 
 
 def main() -> None:
