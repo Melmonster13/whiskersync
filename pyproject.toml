@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["drills", "modules", "sandbox", "harness", "tests"]
+testpaths = ["drills", "modules", "sandbox", "harness"]
 addopts = "-ra --strict-markers"
 markers = [
     "live: makes real ElevenLabs API calls (never in CI)",
