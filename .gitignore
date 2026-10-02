@@ -5,4 +5,5 @@ __pycache__/
 .venv/
 *.db
 logs/
+harness/evals/results/
 .DS_Store

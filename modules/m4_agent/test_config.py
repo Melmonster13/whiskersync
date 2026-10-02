@@ -1,14 +1,16 @@
 from types import SimpleNamespace
 
 import pytest
-from elevenlabs.types import ConversationalConfig
+from elevenlabs.types import AgentPlatformSettingsRequestModel, ConversationalConfig
 
 from modules.m4_agent.agent import TOOL_PARAMS
 from modules.m4_agent.config import (
     AGENT_NAME,
+    EVALUATION_CRITERIA,
     PARAM_DESCRIPTIONS,
     SYSTEM_PROMPT,
     build_conversation_config,
+    build_platform_settings,
 )
 from modules.m4_agent.provision import provision
 
@@ -23,6 +25,13 @@ def test_config_parses_with_sdk_models():
         assert tool.expects_response is True
         assert set(tool.parameters.required) == set(TOOL_PARAMS[tool.name])
         assert set(tool.parameters.properties) == set(TOOL_PARAMS[tool.name])
+
+
+def test_platform_settings_parse_with_sdk_models():
+    settings = AgentPlatformSettingsRequestModel.model_validate(build_platform_settings())
+    criteria = settings.evaluation.criteria
+    assert [c.id for c in criteria] == list(EVALUATION_CRITERIA)
+    assert all(c.conversation_goal_prompt == EVALUATION_CRITERIA[c.id] for c in criteria)
 
 
 def test_param_descriptions_match_tool_params():
@@ -61,6 +70,7 @@ def test_provision_creates_agent():
     assert op == "create"
     assert kwargs["name"] == AGENT_NAME
     assert isinstance(kwargs["conversation_config"], ConversationalConfig)
+    assert isinstance(kwargs["platform_settings"], AgentPlatformSettingsRequestModel)
 
 
 def test_provision_updates_existing_agent():

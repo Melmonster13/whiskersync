@@ -71,6 +71,38 @@ def tool_definitions() -> list[dict]:
     ]
 
 
+# Judge rubric: ElevenLabs grades every conversation against these after it ends.
+EVALUATION_CRITERIA = {
+    "confirmed_after_explicit_yes": (
+        "If the agent confirmed a booking change, it first read back the change summary and the "
+        "user explicitly agreed to it. If no change was confirmed, this is a success."
+    ),
+    "no_invented_details": (
+        "The agent never stated a confirmation code, flight number, time, or name that wasn't "
+        "given by the user or returned by a tool."
+    ),
+    "stayed_in_scope": (
+        "The agent only helped move a flight on the same route, and politely declined anything "
+        "else, such as cancellations, refunds, or route changes."
+    ),
+    "clear_error_handling": (
+        "When something couldn't be done, the agent explained why in plain words and offered a "
+        "next step. If nothing failed, this is a success."
+    ),
+}
+
+
+def build_platform_settings() -> dict:
+    return {
+        "evaluation": {
+            "criteria": [
+                {"id": cid, "name": cid, "type": "prompt", "conversation_goal_prompt": goal}
+                for cid, goal in EVALUATION_CRITERIA.items()
+            ]
+        }
+    }
+
+
 def build_conversation_config(voice_id: str) -> dict:
     return {
         "agent": {

@@ -23,4 +23,10 @@ Format: `date | choice | why`
 - 2026-10-01 | bridge strips SDK-injected `tool_call_id` and returns errors as `{ok: false}` results, not raised exceptions | dispatcher stays strict on unknown args; the agent gets a message it can explain instead of a generic error
 - 2026-10-01 | audit `conversation_id` is a local session id; the ElevenLabs id is logged at session end | the SDK only exposes the conversation id publicly after the session ends
 - 2026-10-01 | replay fixture is hand-written in the SDK message format and run through the SDK's own (private) `_handle_message` | no API key yet to record; exercises the real tool-call path offline; re-record later
+- 2026-10-01 | evals use our own runner, not ElevenLabs simulated conversations | simulation is deprecated and mocks tool results, so it would never exercise our tools, airline, or audit log
+- 2026-10-01 | evals drive the agent with scripted text turns | deterministic and cheap; LLM and TTS latency are real, STT shows n/a; voice sessions get STT numbers via `make latency`
+- 2026-10-01 | each eval scenario gets a fresh in-memory airline over ASGI transport and is forced dry-run | scenarios can't affect each other; no server to start; evals can never change data
+- 2026-10-01 | eval pass = rule-based checks (audit log + final booking) and no ElevenLabs judge `failure`; `unknown` doesn't fail | outcomes are checked deterministically; the judge covers wording and behavior the rules can't
+- 2026-10-01 | judge is ElevenLabs evaluation criteria on the agent, not a separate LLM | no second provider or key; every conversation gets graded, not just evals
+- 2026-10-01 | latency reported as nearest-rank p50/p95 per stage; metric key names and seconds unit are unverified, unmapped keys always printed | the SDK doesn't define the names; fix the mapping after the first live run instead of guessing silently
 - 2026-10-01 | `elevenlabs` pinned to `~=2.70.0` | the Conversation API is marked beta and the replay test touches a private method

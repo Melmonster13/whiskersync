@@ -7,9 +7,9 @@ import os
 
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
-from elevenlabs.types import ConversationalConfig
+from elevenlabs.types import AgentPlatformSettingsRequestModel, ConversationalConfig
 
-from modules.m4_agent.config import AGENT_NAME, build_conversation_config
+from modules.m4_agent.config import AGENT_NAME, build_conversation_config, build_platform_settings
 
 STOCK_VOICE_CATEGORY = "premade"
 
@@ -24,11 +24,15 @@ def check_stock_voice(client, voice_id: str) -> None:
 
 def provision(client, voice_id: str, agent_id: str | None = None) -> str:
     check_stock_voice(client, voice_id)
-    config = ConversationalConfig.model_validate(build_conversation_config(voice_id))
+    kwargs = {
+        "conversation_config": ConversationalConfig.model_validate(build_conversation_config(voice_id)),
+        "platform_settings": AgentPlatformSettingsRequestModel.model_validate(build_platform_settings()),
+        "name": AGENT_NAME,
+    }
     if agent_id:
-        client.conversational_ai.agents.update(agent_id, conversation_config=config, name=AGENT_NAME)
+        client.conversational_ai.agents.update(agent_id, **kwargs)
         return agent_id
-    return client.conversational_ai.agents.create(conversation_config=config, name=AGENT_NAME).agent_id
+    return client.conversational_ai.agents.create(**kwargs).agent_id
 
 
 def main() -> None:

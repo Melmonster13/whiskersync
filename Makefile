@@ -1,6 +1,6 @@
 PYTHON ?= .venv/bin/python
 
-.PHONY: install test evals airline agent talk chat
+.PHONY: install test evals latency airline agent talk chat
 
 install:
 	python3 -m venv .venv
@@ -9,8 +9,13 @@ install:
 test:
 	$(PYTHON) -m pytest -m "not live and not evals"
 
+# Live agent evals (cost credits); report in harness/evals/results/
 evals:
-	$(PYTHON) -m pytest -m evals harness/evals
+	$(PYTHON) -m pytest -m evals -s harness/evals
+
+# Latency p50/p95 for existing conversations: make latency IDS="conv_1 conv_2"
+latency:
+	$(PYTHON) -m harness.evals.runner $(IDS)
 
 # Mock airline API on http://127.0.0.1:8000
 airline:
