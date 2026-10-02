@@ -62,7 +62,7 @@ DECISIONS.md            every non-obvious choice: date, choice, why
 
 ## Status
 
-m1–m3 are complete. m4 is fully tested offline and has run live: a full dry-run rebooking by chat, and 4 of the 6 eval scenarios, all passing, with p50/p95 latency per stage ([live results](modules/m4_agent/README.md#live-results)). Still open: the remaining two eval scenarios, and speech-to-text latency from a voice session ([open questions](modules/m4_agent/README.md#open-questions)).
+m1–m3 are complete. m4 is fully tested offline and has run live: a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge, with p50/p95 latency per stage ([live results](modules/m4_agent/README.md#live-results)). Still open: speech-to-text latency from a voice session, and retrying a confirm that definitely failed ([open questions](modules/m4_agent/README.md#open-questions)).
 
 ## Decisions
 

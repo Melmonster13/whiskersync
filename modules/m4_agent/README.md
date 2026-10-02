@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 180 offline tests pass in CI (77 agent, 12 mock airline, 53 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). First live results are below: a full dry-run rebooking by chat, and 4 of the 6 eval scenarios, all passing (see [Live results](#live-results)).
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 180 offline tests pass in CI (77 agent, 12 mock airline, 53 eval harness, 38 fault harness), including a replayed conversation through the SDK's real tool-call path and a recorded live conversation. Fault injection found two gaps, pinned them as failing tests, and both are now fixed (see [Resilience](#resilience)). Live, it completed a full dry-run rebooking by chat, and all six eval scenarios pass the rule checks and the ElevenLabs judge (see [Live results](#live-results)).
 
 ## Layout
 
@@ -128,7 +128,17 @@ First live session, 2026-10-02: a dry-run rebooking typed through `make chat`. T
 
 - **Cost:** 1,658 credits, of which 1,499 were billed as voice call minutes for the whole 4.5-minute session. Session length, not just the TTS model, drives cost.
 
-Partial eval run, same day: 4 of the 6 scenarios ran before the run was stopped. `happy_path`, `wrong_last_name`, `full_flight` and `user_declines` all pass the rule checks and all four judge criteria. Each ran 19–26 s and cost 183–306 credits. `out_of_scope` and `different_route` haven't run yet.
+**Evals, same day: all six scenarios pass** the rule checks and all four judge criteria. They ran in two batches:
+
+| Batch | Scenarios | TTS | Duration | Credits each |
+|---|---|---|---|---|
+| 1 | `happy_path`, `wrong_last_name`, `full_flight`, `user_declines` | `eleven_v4_turbo` | 19–26 s | 183–306 |
+| 2 | `out_of_scope`, `different_route` | `eleven_flash_v2` | 15–21 s | 199–305 |
+
+- `out_of_scope`: the agent declined the cancel-and-refund request twice and called no tools.
+- `different_route`: the agent looked up the booking, refused to change route, and never tried a quote.
+- **Cost:** switching to Flash v2 showed no visible per-scenario saving. The voice-minute charge (168–236 credits in batch 2) dominates and doesn't track the TTS model. The per-second rate also differed between eval sessions (~11 credits/s) and the long chat (~5.5 credits/s), for reasons not visible in the data. With samples this small, session length is still the main cost lever.
+- **Batch 2 latency** (Flash v2, small samples): `llm` p50 279 / p95 496 ms, `llm_tool` 419 ms (n=1), `tts` p50 123 / p95 138 ms, `e2e` p50 499 / p95 977 ms.
 
 ## Running it live
 
