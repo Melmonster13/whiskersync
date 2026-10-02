@@ -1,6 +1,6 @@
 # m4 — Airline rebooking voice agent
 
-**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 96 offline tests pass in CI (51 agent, 12 mock airline, 33 eval harness), including a replayed conversation through the SDK's real tool-call path. **Nothing has run against the live ElevenLabs API yet**, so there are no eval or latency results so far.
+**Problem:** a voice agent that changes real bookings has to be safe before it's clever. It must verify the caller, never change anything without a clear spoken yes, survive a slow or failing backend, leave an audit trail of every action, and be measurable on behaviour and latency. **Approach:** an ElevenLabs agent, defined in code, calls four tools that run in our own process and reach a mock airline over HTTP. Rebooking takes two steps: `quote_rebook` never writes and returns a single-use confirmation id that expires; `confirm_rebook` is the only write and is a dry run unless `DRY_RUN` is explicitly false. One dispatcher checks every call's arguments, runs the tool, turns failures into replies the agent can speak, and writes an audit line. Live evals drive scripted callers through the real agent, then check outcomes with rules and ElevenLabs' built-in grader, and report p50/p95 latency for each stage. **Result:** 143 offline tests pass in CI (61 agent, 12 mock airline, 33 eval harness, 37 fault harness), including a replayed conversation through the SDK's real tool-call path. Fault injection found two gaps, now pinned as strict expected-failure tests until they're fixed (see [Resilience](#resilience)). **Nothing has run against the live ElevenLabs API yet**, so there are no eval or latency results so far.
 
 ## Layout
 
@@ -73,6 +73,20 @@
 | Unknown timing metric names | Listed so the mapping can be fixed | `test_unmapped_keys_are_reported` |
 | Analysis still running, or never finishing | Polls, then `TimeoutError` | `test_wait_for_analysis_polls_until_done`, `test_wait_for_analysis_times_out` |
 
+## Resilience
+
+Tested with the [fault injection harness](../../harness/faults/README.md) between the tools and the airline (`test_resilience.py`).
+
+| Case | Behaviour | Test |
+|---|---|---|
+| Airline slow | Same results; only latency changes | `test_latency_does_not_change_results` |
+| 500, 503, 429, connection refused, or timeout | `airline_unavailable`, audited | `test_airline_failures_become_airline_unavailable` |
+| Airline fails once, then recovers | The next call succeeds | `test_flaky_airline_recovers` |
+| Confirm fails before reaching the airline | Booking unchanged; the quote is used up, so the agent must quote again | `test_confirm_failure_before_send_leaves_booking_and_needs_requote` |
+| Dry-run confirm | Never contacts the airline | `test_dry_run_confirm_never_reaches_airline` |
+| **Gap 1:** non-JSON reply (broken 200, HTML 404) | Currently `internal_error` plus an exception; should be `airline_unavailable` | `test_gap_non_json_reply_is_airline_unavailable` (xfail) |
+| **Gap 2:** confirm applied but its reply lost | The booking **did** change, but the agent reports a failure; should re-check and report `rebooked` | `test_gap_lost_write_is_reported_as_rebooked` (xfail) |
+
 ## Eval scenarios
 
 `happy_path`, `wrong_last_name`, `full_flight`, `user_declines`, `out_of_scope`, `different_route`. Each starts from a fresh in-memory airline and is forced into dry-run mode. They're defined in `harness/evals/scenarios.py`.
@@ -87,6 +101,7 @@
 
 ## Open questions
 
+- **Known gaps:** the two resilience gaps above are documented but not yet fixed.
 - **Metric names:** the stage mapping and the seconds unit are guesses; the SDK doesn't define either.
 - **Text-only sessions:** it's unverified whether the voice agent accepts them without extra setup; `make chat` and the evals depend on it.
 - **Replay fixtures:** they're hand-written, not recorded. Re-record them after the first live run.

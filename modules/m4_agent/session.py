@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import ClientTools, Conversation
 
+from harness.faults.faults import profile_from_env, wrap_transport
 from modules.m4_agent.agent import TOOL_PARAMS, handle_tool_call
 from modules.m4_agent.audit import AuditLog
 from modules.m4_agent.tools import AirlineTools, dry_run_from_env
@@ -67,8 +68,11 @@ def main() -> None:
     text_mode = "--text" in sys.argv
     session_id = f"local-{uuid.uuid4().hex[:12]}"
     audit = AuditLog(os.environ.get("AUDIT_LOG_PATH", "logs/audit.jsonl"))
+    fault_profile = profile_from_env()
     airline = httpx.AsyncClient(
-        base_url=os.environ.get("MOCK_AIRLINE_URL", "http://127.0.0.1:8000"), timeout=5
+        transport=wrap_transport(httpx.AsyncHTTPTransport(), fault_profile),
+        base_url=os.environ.get("MOCK_AIRLINE_URL", "http://127.0.0.1:8000"),
+        timeout=5,
     )
     tools = AirlineTools(airline, dry_run=dry_run_from_env())
     bridge = ToolBridge(tools, audit, session_id)
@@ -84,7 +88,9 @@ def main() -> None:
         callback_agent_response=lambda text: print(f"Agent: {text}"),
         callback_user_transcript=lambda text: print(f"You: {text}"),
     )
-    print(f"Session {session_id} (dry_run={tools.dry_run}). Ctrl-C or 'quit' to end.")
+    print(
+        f"Session {session_id} (dry_run={tools.dry_run}, faults={fault_profile}). Ctrl-C or 'quit' to end."
+    )
     conversation.start_session()
     try:
         if text_mode:
