@@ -11,7 +11,7 @@ Four building blocks of a voice-AI product, each built and tested as a standalon
 | [m1 — Transcript sync](modules/m1_transcript/README.md) | Finds the active word and speaker at any playback time, using `bisect`; handles pauses, crosstalk and ElevenLabs speech-to-text output | 37 |
 | [m2 — Dubbing state machine](modules/m2_dubbing/README.md) | One explicit state machine per language task; retries resume the stage that failed; one combined status per job | 54 |
 | [m3 — Permissions](modules/m3_permissions/README.md) | Permissions inherited down a resource tree, with overrides and explicit deny; the nearest grant wins | 26 |
-| [m4 — Rebooking voice agent](modules/m4_agent/README.md) | An ElevenLabs agent with a gated quote → confirm flow, dry-run by default, an audit log, a mock airline, live evals with p50/p95 latency per stage, and fault-injection tests | 173 |
+| [m4 — Rebooking voice agent](modules/m4_agent/README.md) | An ElevenLabs agent with a gated quote → confirm flow, dry-run by default, an audit log, a mock airline, live evals with p50/p95 latency per stage, and fault-injection tests | 180 |
 
 Each module README has a problem → approach → result summary, its rules, and a table of edge cases with the test that covers each one.
 
@@ -36,7 +36,7 @@ make install
 make test
 ```
 
-`make test` runs the full offline suite: 290 module tests pass, and the 102 drill tests show as expected failures (`xfailed`) until each drill is solved. CI runs the same command on Python 3.12.
+`make test` runs the full offline suite: 297 module tests pass, and the 102 drill tests show as expected failures (`xfailed`) until each drill is solved. CI runs the same command on Python 3.12.
 
 Live agent (needs an ElevenLabs API key in `.env`; see the [m4 README](modules/m4_agent/README.md#running-it-live)):
 
@@ -45,7 +45,7 @@ Live agent (needs an ElevenLabs API key in `.env`; see the [m4 README](modules/m
 | `make airline` | Start the mock airline API on port 8000 |
 | `make agent` | Create or update the agent from code |
 | `make chat` / `make talk` | Text or voice session with the agent |
-| `make evals` | Run the six live eval scenarios (costs credits) |
+| `make evals` | Run the six live eval scenarios (costs credits); `ONLY=name,name` runs a subset |
 | `make latency IDS="..."` | p50/p95 latency per stage for existing conversations |
 
 ## Layout

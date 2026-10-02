@@ -22,6 +22,20 @@ class Scenario:
     notes: str = field(default="", compare=False)
 
 
+def select_scenarios(spec: str | None) -> tuple["Scenario", ...]:
+    """Scenarios named in a comma-separated spec, in SCENARIOS order; empty means all.
+
+    Unknown names raise ValueError, so a typo fails before any credits are spent.
+    """
+    names = {n.strip() for n in (spec or "").split(",") if n.strip()}
+    if not names:
+        return SCENARIOS
+    known = {s.name for s in SCENARIOS}
+    if unknown := names - known:
+        raise ValueError(f"unknown scenario(s) {sorted(unknown)}; choose from {sorted(known)}")
+    return tuple(s for s in SCENARIOS if s.name in names)
+
+
 SCENARIOS = (
     Scenario(
         name="happy_path",

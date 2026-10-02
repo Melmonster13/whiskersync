@@ -10,8 +10,9 @@ test:
 	$(PYTHON) -m pytest -m "not live and not evals"
 
 # Live agent evals (cost credits); report in harness/evals/results/
+# Run a subset: make evals ONLY=out_of_scope,different_route
 evals:
-	$(PYTHON) -m pytest -m evals -s harness/evals
+	EVAL_SCENARIOS="$(ONLY)" $(PYTHON) -m pytest -m evals -s harness/evals
 
 # Latency p50/p95 for existing conversations: make latency IDS="conv_1 conv_2"
 latency:

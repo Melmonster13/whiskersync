@@ -33,6 +33,7 @@ Format: `date | choice | why`
 - 2026-10-01 | fault randomness and sleep are injected (seeded RNG, fake sleep) | repeatable tests that never actually wait
 - 2026-10-01 | injected error statuses carry a plain-text body | real proxies and gateways return HTML; callers mustn't assume JSON
 - 2026-10-01 | gaps found by fault injection land first as strict `xfail` tests, fixed in a later change | the history shows find then fix; strict means a fix can't go unnoticed
+- 2026-10-02 | `make evals ONLY=a,b` runs a subset; all six by default; unknown names fail before the cost guard or any session | saves credits on targeted runs; a typo must never silently run nothing or everything
 - 2026-10-02 | agent TTS is `eleven_flash_v2`, not v2.5 | lower-cost, low-latency model; ElevenLabs rejects the v2.5 models for English agents ("must use turbo or flash v2")
 - 2026-10-02 | expressive mode off | it made the model write delivery tags like "[slow]" into replies, which show up literally in text sessions
 - 2026-10-02 | `make evals` refuses to run unless the live agent uses `eleven_flash_v2` or `eleven_turbo_v2` | the model can be changed in the dashboard; check before spending credits

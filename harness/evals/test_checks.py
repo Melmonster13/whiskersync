@@ -5,7 +5,7 @@ import pytest
 
 from harness.evals.checks import check
 from harness.evals.runner import CostGuardError, check_low_cost_tts, wait_for_agent_turn, wait_for_analysis
-from harness.evals.scenarios import SCENARIOS, Scenario
+from harness.evals.scenarios import SCENARIOS, Scenario, select_scenarios
 from modules.m4_agent.agent import TOOL_PARAMS
 from modules.m4_agent.config import EVALUATION_CRITERIA, LOW_COST_TTS_MODELS
 
@@ -68,6 +68,27 @@ def test_scenarios_are_consistent():
         assert tools <= TOOL_PARAMS.keys(), s.name
         assert not (s.must_succeed & (s.must_not_succeed | s.must_not_call)), s.name
         assert s.user_turns, s.name
+
+
+@pytest.mark.parametrize(
+    "spec, expected",
+    [
+        (None, [s.name for s in SCENARIOS]),
+        ("", [s.name for s in SCENARIOS]),
+        (" , ", [s.name for s in SCENARIOS]),
+        ("different_route,out_of_scope", ["out_of_scope", "different_route"]),   # scenario order, not spec order
+        (" happy_path , happy_path ", ["happy_path"]),                          # spaces and duplicates
+    ],
+)
+def test_select_scenarios(spec, expected):
+    assert [s.name for s in select_scenarios(spec)] == expected
+
+
+@pytest.mark.parametrize("spec", ["happy_pth", "happy_path,nope"])
+def test_select_scenarios_unknown_name_raises(spec):
+    with pytest.raises(ValueError, match="choose from") as exc:
+        select_scenarios(spec)
+    assert "happy_path" in str(exc.value)          # lists the valid names
 
 
 def test_evaluation_criteria_are_described():
