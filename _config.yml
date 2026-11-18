@@ -1,0 +1,4 @@
+title: WhiskerSync
+remote_theme: Melmonster13/synthwave-theme
+plugins:
+  - jekyll-remote-theme
