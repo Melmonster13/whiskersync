@@ -5,7 +5,7 @@
 ## Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     caller([Caller]) <-->|voice or text| agent[ElevenLabs agent<br/>STT · LLM · TTS<br/>prompt + judge criteria]
     agent <-->|client tool calls<br/>over the SDK session| bridge[ToolBridge<br/>session.py]
     bridge --> dispatch[Dispatcher<br/>validate · run · audit]
